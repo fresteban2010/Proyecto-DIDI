@@ -1,0 +1,465 @@
+play_circle
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#FF6600">
+  <title>DIDI Pro - Monitor de Ganancias y Rentabilidad</title>
+  <link rel="manifest" href="assets/icons/manifest.json">
+  <link rel="icon" href="assets/icons/favicon.svg">
+  <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <!-- CABECERA -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand">
+        <div class="brand-logo">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4.93 19.07A10 10 0 1 1 19.07 4.93" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round"/>
+            <path d="M19.07 19.07A10 10 0 0 0 21.5 13.5" stroke="#FFFFFF" stroke-opacity="0.45" stroke-width="2.4" stroke-linecap="round"/>
+            <path d="M11 13L17.5 6.5M17.5 6.5H13.5M17.5 6.5V10.5" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="10.5" cy="13.5" r="2" fill="#FFFFFF"/>
+          </svg>
+        </div>
+        <div>
+          <h1>DIDI <span>Tracker</span></h1>
+          <p id="estado-jornada" class="shift-status">Jornada no iniciada</p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <button id="btn-reiniciar-jornada" class="btn btn-secondary">
+          <i data-lucide="rotate-ccw"></i>
+          <span>Iniciar / Reiniciar Jornada</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- BOTÓN FIJO + REGISTRAR CARRERA -->
+  <div class="fixed-cta-container">
+    <button id="btn-abrir-modal-viaje" class="btn btn-primary btn-fixed-cta">
+      <i data-lucide="plus-circle"></i>
+      <span>REGISTRAR CARRERA</span>
+    </button>
+  </div>
+
+  <!-- DASHBOARD PRINCIPAL -->
+  <main class="dashboard-container">
+
+    <!-- BLOQUE 1: ÚLTIMO VIAJE (AUDITORÍA INMEDIATA) -->
+    <section class="section-block">
+      <div class="section-header">
+        <h2><i data-lucide="zap"></i> Último Viaje</h2>
+        <span id="ultimo-viaje-badge" class="badge badge-neutral">Sin datos</span>
+      </div>
+
+      <div id="card-ultimo-viaje" class="card traffic-card traffic-none">
+        <div id="ultimo-viaje-vacio" class="empty-state">
+          <i data-lucide="navigation"></i>
+          <p>Registra tu primera carrera para auditar su rentabilidad en tiempo real.</p>
+        </div>
+
+        <div id="ultimo-viaje-contenido" class="ultimo-viaje-grid hidden">
+          <div class="metric-box highlight-box">
+            <span class="metric-label">Rentabilidad Hora</span>
+            <strong id="uv-cop-hora" class="metric-value">$0 /h</strong>
+            <span id="uv-vs-hora" class="metric-diff">0% vs prom.</span>
+          </div>
+
+          <div class="metric-box highlight-box">
+            <span class="metric-label">Rentabilidad Km</span>
+            <strong id="uv-cop-km" class="metric-value">$0 /km</strong>
+            <span id="uv-vs-km" class="metric-diff">0% vs prom.</span>
+          </div>
+
+          <div class="metric-box">
+            <span class="metric-label">Valor Carrera</span>
+            <strong id="uv-precio" class="metric-value-sm">$0</strong>
+            <span id="uv-metodo" class="metric-sub">Efectivo</span>
+          </div>
+
+          <div class="metric-box">
+            <span class="metric-label">Tiempo Total</span>
+            <strong id="uv-tiempo" class="metric-value-sm">0 min</strong>
+            <span id="uv-tiempo-desglose" class="metric-sub">Rec: 0m | Ent: 0m</span>
+          </div>
+
+          <div class="metric-box">
+            <span class="metric-label">Distancia Total</span>
+            <strong id="uv-distancia" class="metric-value-sm">0.0 km</strong>
+            <span id="uv-distancia-desglose" class="metric-sub">Rec: 0km | Ent: 0km</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- BLOQUE 2: SESIÓN + PROYECCIÓN -->
+    <section class="section-block">
+      <div class="section-header">
+        <h2><i data-lucide="trending-up"></i> Resumen de Sesión y Meta</h2>
+      </div>
+
+      <div class="stats-grid">
+        <div class="card stat-card">
+          <div class="stat-icon"><i data-lucide="wallet"></i></div>
+          <div class="stat-info">
+            <span class="stat-label">Total Ganado (Bruto)</span>
+            <strong id="sesion-total-ganado" class="stat-value">$0</strong>
+          </div>
+        </div>
+
+        <div class="card stat-card">
+          <div class="stat-icon"><i data-lucide="clock"></i></div>
+          <div class="stat-info">
+            <span class="stat-label">Promedio COP / Hora</span>
+            <strong id="sesion-prom-hora" class="stat-value">$0</strong>
+            <small class="stat-meta">Meta: $30.000/h</small>
+          </div>
+        </div>
+
+        <div class="card stat-card">
+          <div class="stat-icon"><i data-lucide="map-pin"></i></div>
+          <div class="stat-info">
+            <span class="stat-label">Promedio COP / Km</span>
+            <strong id="sesion-prom-km" class="stat-value">$0</strong>
+            <small class="stat-meta">Meta: $2.000/km</small>
+          </div>
+        </div>
+
+        <div class="card stat-card">
+          <div class="stat-icon"><i data-lucide="activity"></i></div>
+          <div class="stat-info">
+            <span class="stat-label">Actividad</span>
+            <strong id="sesion-tiempo-activo" class="stat-value">0h 0m</strong>
+            <small id="sesion-total-carreras" class="stat-meta">0 carreras completadas</small>
+          </div>
+        </div>
+      </div>
+
+      <!-- SLIDER META DIARIA Y PROYECCIÓN -->
+      <div class="card goal-card">
+        <div class="goal-header">
+          <div>
+            <span class="goal-title">Meta Diaria de Ingresos</span>
+            <h3 id="meta-diaria-valor">$150.000</h3>
+          </div>
+          <div class="goal-badge-wrap">
+            <span id="meta-porcentaje" class="badge badge-success">0% completado</span>
+          </div>
+        </div>
+
+        <input
+          type="range"
+          id="slider-meta-diaria"
+          class="goal-slider"
+          min="30000"
+          max="400000"
+          step="10000"
+          value="150000"
+        />
+
+        <div class="progress-bar-bg">
+          <div id="barra-progreso-meta" class="progress-bar-fill" style="width: 0%;"></div>
+        </div>
+
+        <div class="projection-grid">
+          <div class="projection-item">
+            <span>Faltante para la meta</span>
+            <strong id="proyeccion-faltante">$150.000</strong>
+          </div>
+          <div class="projection-item">
+            <span>Tiempo estimado restante (a tu ritmo actual)</span>
+            <strong id="proyeccion-horas">--</strong>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- BLOQUE 3: GRÁFICOS -->
+    <section class="section-block">
+      <div class="section-header">
+        <h2><i data-lucide="bar-chart-3"></i> Rendimiento Visual</h2>
+      </div>
+
+      <div class="charts-grid">
+        <div class="card chart-card">
+          <div class="chart-header">
+            <h3>Efectivo vs Tarjeta</h3>
+            <p id="resumen-pagos-texto" class="chart-sub">Efectivo: $0 (0) | Tarjeta: $0 (0)</p>
+          </div>
+          <div class="canvas-wrapper donut-wrapper">
+            <canvas id="chart-pagos"></canvas>
+          </div>
+        </div>
+
+        <div class="card chart-card">
+          <div class="chart-header">
+            <h3>Rentabilidad COP/h por Carrera</h3>
+            <p class="chart-sub">Línea punteada: Meta $30.000 / hora</p>
+          </div>
+          <div class="canvas-wrapper bar-wrapper">
+            <canvas id="chart-carreras"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- BLOQUE 4: GASOLINA Y BOLSILLO -->
+    <section class="section-block">
+      <div class="section-header">
+        <h2><i data-lucide="fuel"></i> Gasolina y Bolsillo Real</h2>
+        <button id="btn-abrir-modal-tanqueada" class="btn btn-outline">
+          <i data-lucide="plus"></i>
+          <span>Registrar Tanqueada</span>
+        </button>
+      </div>
+
+      <div class="fuel-grid">
+        <div class="card stat-card">
+          <div class="stat-icon"><i data-lucide="route"></i></div>
+          <div class="stat-info">
+            <span class="stat-label">Kilómetros Rodados</span>
+            <strong id="gas-km-total" class="stat-value">0.0 km</strong>
+            <small class="stat-meta">Recogida + Entrega</small>
+          </div>
+        </div>
+
+        <div class="card stat-card">
+          <div class="stat-icon icon-danger"><i data-lucide="flame"></i></div>
+          <div class="stat-info">
+            <span class="stat-label">Desgaste Gasolina Estimado</span>
+            <strong id="gas-gasto-estimado" class="stat-value text-danger">$0</strong>
+            <small class="stat-meta">Cálculo: $400 COP / km</small>
+          </div>
+        </div>
+
+        <div class="card stat-card card-net-profit">
+          <div class="stat-icon icon-success"><i data-lucide="banknote"></i></div>
+          <div class="stat-info">
+            <span class="stat-label">Ganancia Neta (Bolsillo)</span>
+            <strong id="gas-ganancia-neta" class="stat-value text-success">$0</strong>
+            <small class="stat-meta">Bruto menos gasolina consumida</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="card fuel-log-card">
+        <div class="fuel-log-header">
+          <h4>Tanqueadas Registradas en la Sesión</h4>
+          <span id="total-tanqueadas-sesion">Total pagado en bomba: $0</span>
+        </div>
+        <div id="lista-tanqueadas" class="fuel-list"></div>
+      </div>
+    </section>
+
+    <!-- BLOQUE 5: HISTORIAL DE CARRERAS -->
+    <section class="section-block">
+      <div class="section-header">
+        <h2><i data-lucide="list"></i> Historial de la Sesión</h2>
+        <button id="btn-exportar-csv" class="btn btn-outline">
+          <i data-lucide="download"></i>
+          <span>Exportar CSV</span>
+        </button>
+      </div>
+
+      <div class="card table-card">
+        <div class="table-responsive">
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Hora</th>
+                <th>Precio</th>
+                <th>Pago</th>
+                <th>Dist. Total</th>
+                <th>Tiempo</th>
+                <th>COP/h</th>
+                <th>COP/km</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-historial-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODAL 1: ENCUESTA DE VIAJE (REGISTRAR / EDITAR CARRERA) -->
+  <div id="modal-viaje" class="modal-overlay hidden" aria-hidden="true">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modal-viaje-titulo">Registrar Carrera</h3>
+        <button type="button" id="btn-cerrar-modal-viaje" class="btn-icon" aria-label="Cerrar">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+
+      <form id="form-viaje" autocomplete="off">
+        <input type="hidden" id="viaje-id" />
+
+        <div class="form-row-2">
+          <div class="form-group">
+            <label for="distRecogidaKm">Dist. Recogida (km)</label>
+            <input
+              type="number"
+              id="distRecogidaKm"
+              inputmode="decimal"
+              step="any"
+              min="0"
+              placeholder="Ej: 1.5"
+              required
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="tiempoRecogidaMin">Tiempo Recogida (min)</label>
+            <input
+              type="number"
+              id="tiempoRecogidaMin"
+              inputmode="decimal"
+              step="any"
+              min="0"
+              placeholder="Ej: 5"
+              required
+            />
+          </div>
+        </div>
+
+        <div class="form-row-2">
+          <div class="form-group">
+            <label for="distEntregaKm">Dist. Entrega (km)</label>
+            <input
+              type="number"
+              id="distEntregaKm"
+              inputmode="decimal"
+              step="any"
+              min="0.1"
+              placeholder="Ej: 4.2"
+              required
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="tiempoEntregaMin">Tiempo Entrega (min)</label>
+            <input
+              type="number"
+              id="tiempoEntregaMin"
+              inputmode="decimal"
+              step="any"
+              min="1"
+              placeholder="Ej: 12"
+              required
+            />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="precioCOP">Precio Total de la Carrera (COP)</label>
+          <input
+            type="number"
+            id="precioCOP"
+            inputmode="decimal"
+            step="any"
+            min="100"
+            placeholder="Ej: 10500"
+            required
+          />
+        </div>
+
+        <div class="form-group">
+          <label>Método de Pago</label>
+          <div class="payment-selector">
+            <label class="payment-option">
+              <input type="radio" name="metodoPago" value="efectivo" checked />
+              <span class="payment-box">
+                <i data-lucide="banknote"></i>
+                Efectivo
+              </span>
+            </label>
+            <label class="payment-option">
+              <input type="radio" name="metodoPago" value="tarjeta" />
+              <span class="payment-box">
+                <i data-lucide="credit-card"></i>
+                Tarjeta
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" id="btn-cancelar-viaje" class="btn btn-secondary">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar Carrera</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 2: REGISTRAR TANQUEADA -->
+  <div id="modal-tanqueada" class="modal-overlay hidden" aria-hidden="true">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Registrar Tanqueada</h3>
+        <button type="button" id="btn-cerrar-modal-tanqueada" class="btn-icon" aria-label="Cerrar">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+
+      <form id="form-tanqueada" autocomplete="off">
+        <div class="form-group">
+          <label for="tanqueadaMontoCOP">Valor Tanqueado (COP)</label>
+          <input
+            type="number"
+            id="tanqueadaMontoCOP"
+            inputmode="decimal"
+            step="any"
+            min="1000"
+            placeholder="Ej: 20000"
+            required
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="tanqueadaGalones">Galones (Opcional - se calcula con $16.000/gal)</label>
+          <input
+            type="number"
+            id="tanqueadaGalones"
+            inputmode="decimal"
+            step="any"
+            min="0.1"
+            placeholder="Ej: 1.25"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="tanqueadaNota">Nota / Kilometraje Odómetro (Opcional)</label>
+          <input
+            type="text"
+            id="tanqueadaNota"
+            placeholder="Ej: Bomba Terpel - 45.210 km"
+          />
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" id="btn-cancelar-tanqueada" class="btn btn-secondary">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar Tanqueada</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+# Sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editores / entornos
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Exportaciones de datos del usuario (privacidad: ganancias reales)
+*.csv
+didi_jornada_*.csv
+
+# Logs y temporales
+*.log
+npm-debug.log*
+yarn-debug.log*
+
+# Dependencias / build (por si crece el proyecto)
+node_modules/
+dist/
+.cache/

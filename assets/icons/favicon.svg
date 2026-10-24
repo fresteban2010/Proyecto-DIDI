@@ -1,0 +1,33 @@
+Xml
+play_circle
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="didi-brand-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF6600" />
+      <stop offset="100%" stop-color="#FF8800" />
+    </linearGradient>
+  </defs>
+
+  <!-- Contenedor Squircle con Gradiente Oficial (135deg, #FF6600 -> #FF8800) -->
+  <rect width="32" height="32" rx="8" fill="url(#didi-brand-gradient)" />
+
+  <!-- Arco Principal del Tacómetro / Silueta "D" Simplificada -->
+  <path
+    d="M7.8 23.2A10.5 10.5 0 1 1 20.2 6.4"
+    stroke="#FFFFFF"
+    stroke-width="4.8"
+    stroke-linecap="round"
+  />
+
+  <!-- Aguja-Flecha Financiera Ascendente -->
+  <path
+    d="M14.5 17.5L23.5 8.5M23.5 8.5H18M23.5 8.5V14"
+    stroke="#FFFFFF"
+    stroke-width="4.8"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+
+  <!-- Punto de Pivote -->
+  <circle cx="13.5" cy="18.5" r="3" fill="#FFFFFF" />
+</svg>
