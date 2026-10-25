@@ -84,8 +84,12 @@ Sin archivos MP3: osciladores senoidales con envolvente anti-clic.
 
 ### 7. PWA y modo offline
 
-- Instalable en Android/iOS/escritorio (`manifest.json`, iconos 192/512, `display: standalone`).
-- **Service Worker** (`sw.js`, caché `didi-tracker-v4`):
+- **URL publicada:** https://fresteban2010.github.io/Proyecto-DIDI/
+- Instalable en Android/iOS/escritorio (`manifest.json`, iconos 192/512 `any` + `maskable`, capturas, atajos y `display: standalone`).
+- **Instalar en Android (Chrome):** abrir la URL → menú **⋮** → **Instalar aplicación** (o usar el banner/botón *Instalar* dentro de la app).
+- **Instalar en iPhone (Safari):** abrir la URL → botón **Compartir** → **Añadir a pantalla de inicio** → **Añadir**. En iOS no existe el instalador automático; la app muestra las instrucciones desde el botón *Instalar DIDI Pro* en Ajustes.
+- La app detecta si ya está instalada (`display-mode: standalone`) y oculta el aviso de instalación.
+- **Service Worker** (`sw.js`, caché `didi-tracker-v6`):
   - Navegación: *Network-First* con fallback a caché.
   - Assets locales (`index.html`, CSS, JS, iconos): *Stale-While-Revalidate*.
   - CDNs (Chart.js, Lucide, Google Fonts): *Cache-First*.
@@ -157,16 +161,24 @@ Proyecto DIDI/
 ├── js/
 │   ├── db.js                   # Capa IndexedDB (DidiTrackerDB v1)
 │   └── app.js                  # Estado, cálculos, render, audio, reportes y CRUD
-├── sw.js                       # Service Worker (offline, caché v4)
+├── manifest.json               # Manifest PWA (raíz, rutas relativas)
+├── sw.js                       # Service Worker (offline, caché v6)
 ├── assets/
+│   ├── brand/
+│   │   └── logo-tacometro-2k.png
+│   ├── screenshots/
+│   │   ├── mobile.png
+│   │   └── desktop.png
 │   └── icons/
-│       ├── manifest.json
+│       ├── logo-tacometro.png
 │       ├── favicon.svg
 │       ├── favicon-16x16.png
 │       ├── favicon-32x32.png
 │       ├── apple-touch-icon.png
 │       ├── pwa-icon-192.png
-│       └── pwa-icon-512.png
+│       ├── pwa-icon-512.png
+│       ├── pwa-icon-192-maskable.png
+│       └── pwa-icon-512-maskable.png
 ├── plan de ejecucion arreglos.txt   # Plan de las 5 fases
 ├── PLAN_EXECUCION_GIT.md
 └── README.md
