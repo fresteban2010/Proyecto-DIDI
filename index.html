@@ -49,14 +49,6 @@
     </div>
   </header>
 
-  <!-- BOTÓN FIJO + REGISTRAR CARRERA -->
-  <div class="fixed-cta-container">
-    <button id="btn-abrir-modal-viaje" class="btn btn-primary btn-fixed-cta">
-      <i data-lucide="plus-circle"></i>
-      <span>REGISTRAR CARRERA</span>
-    </button>
-  </div>
-
   <!-- DASHBOARD PRINCIPAL (VISTAS SPA) -->
   <main class="dashboard-container">
     <!-- AVISO DE INSTALACIÓN PWA -->
@@ -499,6 +491,23 @@
           </p>
         </div>
 
+        <div class="card settings-card">
+          <h4><i data-lucide="sliders-horizontal"></i> Controles del turno</h4>
+          <p class="settings-desc">
+            Audio y jornada también están disponibles aquí cuando la cabecera queda fuera de pantalla.
+          </p>
+          <div class="settings-actions">
+            <button type="button" id="btn-audio-ajustes" class="btn btn-secondary">
+              <i data-lucide="volume-2"></i>
+              <span>Silenciar sonidos</span>
+            </button>
+            <button type="button" id="btn-reiniciar-ajustes" class="btn btn-outline">
+              <i data-lucide="rotate-ccw"></i>
+              <span>Iniciar / Reiniciar Jornada</span>
+            </button>
+          </div>
+        </div>
+
         <div class="card settings-card" id="card-instalar-app">
           <h4><i data-lucide="smartphone"></i> Instalar aplicación</h4>
           <p class="settings-desc" id="install-estado">
@@ -825,6 +834,10 @@
     <button type="button" class="nav-item" data-view="calculadora">
       <i data-lucide="calculator"></i>
       <span>Calculadora</span>
+    </button>
+    <button type="button" class="nav-item nav-item-cta" id="nav-registrar-carrera" aria-label="Registrar carrera">
+      <i data-lucide="plus"></i>
+      <span>Registrar</span>
     </button>
     <button type="button" class="nav-item" data-view="historial">
       <i data-lucide="history"></i>

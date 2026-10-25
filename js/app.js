@@ -1849,6 +1849,12 @@ function configurarEventListeners() {
   const btnAudio = document.getElementById('btn-toggle-audio');
   if (btnAudio) btnAudio.addEventListener('click', alternarAudio);
 
+  const btnAudioAjustes = document.getElementById('btn-audio-ajustes');
+  if (btnAudioAjustes) btnAudioAjustes.addEventListener('click', alternarAudio);
+
+  const btnReiniciarAjustes = document.getElementById('btn-reiniciar-ajustes');
+  if (btnReiniciarAjustes) btnReiniciarAjustes.addEventListener('click', reiniciarJornada);
+
   // Selector Modo Rápido / Desglose Detallado
   document.querySelectorAll('.form-mode-toggle .mode-btn').forEach(boton => {
     boton.addEventListener('click', () => {
@@ -1860,9 +1866,9 @@ function configurarEventListeners() {
     });
   });
 
-  const btnAbrirViaje = document.getElementById('btn-abrir-modal-viaje');
-  if (btnAbrirViaje) {
-    btnAbrirViaje.addEventListener('click', () => {
+  const btnNavRegistrar = document.getElementById('nav-registrar-carrera');
+  if (btnNavRegistrar) {
+    btnNavRegistrar.addEventListener('click', () => {
       asegurarJornadaActiva().then(activa => {
         if (activa) abrirModalViaje(null);
       });
@@ -2608,15 +2614,29 @@ function reproducirTono(semaforo) {
 }
 
 function actualizarBotonAudio() {
-  const boton = document.getElementById('btn-toggle-audio');
-  if (!boton) return;
+  const botones = [
+    document.getElementById('btn-toggle-audio'),
+    document.getElementById('btn-audio-ajustes')
+  ].filter(Boolean);
+  if (!botones.length) return;
 
   const silenciado = !!appData?.config?.audioSilenciado;
-  boton.setAttribute('aria-pressed', silenciado ? 'true' : 'false');
-  boton.setAttribute('aria-label', silenciado ? 'Activar sonidos' : 'Silenciar sonidos');
-  boton.setAttribute('title', silenciado ? 'Activar sonidos' : 'Silenciar sonidos');
-  boton.classList.toggle('muted', silenciado);
-  boton.innerHTML = `<i data-lucide="${silenciado ? 'volume-x' : 'volume-2'}"></i><span>Audio</span>`;
+
+  botones.forEach(boton => {
+    boton.setAttribute('aria-pressed', silenciado ? 'true' : 'false');
+    boton.setAttribute('aria-label', silenciado ? 'Activar sonidos' : 'Silenciar sonidos');
+    boton.setAttribute('title', silenciado ? 'Activar sonidos' : 'Silenciar sonidos');
+    boton.classList.toggle('muted', silenciado);
+
+    const etiqueta =
+      boton.id === 'btn-audio-ajustes'
+        ? silenciado
+          ? 'Activar sonidos'
+          : 'Silenciar sonidos'
+        : 'Audio';
+
+    boton.innerHTML = `<i data-lucide="${silenciado ? 'volume-x' : 'volume-2'}"></i><span>${etiqueta}</span>`;
+  });
 
   if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') {
     lucide.createIcons();

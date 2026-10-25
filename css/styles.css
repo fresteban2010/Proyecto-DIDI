@@ -917,7 +917,7 @@ input[type="text"]:focus {
   right: 0;
   z-index: 90;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   background-color: rgba(22, 31, 48, 0.96);
   backdrop-filter: blur(10px);
   border-top: 1px solid var(--border-color);
@@ -967,7 +967,7 @@ input[type="text"]:focus {
     right: auto;
     width: 88px;
     grid-template-columns: 1fr;
-    grid-template-rows: repeat(4, auto);
+    grid-template-rows: repeat(5, auto);
     align-content: start;
     gap: 8px;
     padding: 16px 10px;
@@ -1500,4 +1500,68 @@ input[type="text"]:focus {
 
 #card-instalar-app {
   border-color: rgba(255, 102, 0, 0.32);
+}
+
+/* === FASE 8: REDISEÑO MÓVIL DEL DASHBOARD === */
+
+/* La cabecera deja de quedar fija en móvil: se desplaza con el contenido */
+@media (max-width: 959px) {
+  .app-header {
+    position: static;
+  }
+}
+
+/* Acción principal integrada en la barra inferior (5 ítems) */
+.nav-item-cta {
+  width: 58px;
+  height: 58px;
+  margin: 0 auto;
+  align-self: center;
+  justify-content: center;
+  padding: 0;
+  gap: 1px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary), var(--brand-amber));
+  color: #FFFFFF;
+  transform: translateY(-16px);
+  box-shadow:
+    0 8px 22px rgba(255, 102, 0, 0.45),
+    0 0 0 6px rgba(11, 15, 25, 0.92);
+}
+
+.nav-item-cta svg {
+  width: 24px;
+  height: 24px;
+}
+
+.nav-item-cta span {
+  font-size: 0.6rem;
+  line-height: 1;
+  font-weight: 700;
+}
+
+.nav-item-cta:active {
+  transform: translateY(-16px) scale(0.94);
+}
+
+@media (min-width: 960px) {
+  .nav-item-cta {
+    width: 56px;
+    height: 56px;
+    margin: 8px auto;
+    transform: none;
+  }
+  .nav-item-cta:active {
+    transform: scale(0.94);
+  }
+}
+
+/* En móvil el contenido gana el espacio del CTA fijo eliminado */
+@media (max-width: 959px) {
+  .dashboard-container {
+    padding-bottom: 96px;
+  }
+  .toast-container {
+    bottom: 150px;
+  }
 }

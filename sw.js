@@ -6,7 +6,7 @@
  *  - CDNs (Chart.js, Lucide, Google Fonts): Cache-First.
  */
 
-const SW_CACHE = 'didi-tracker-v6';
+const SW_CACHE = 'didi-tracker-v8';
 
 // Assets locales esenciales para operación offline
 const LOCAL_ASSETS = [
