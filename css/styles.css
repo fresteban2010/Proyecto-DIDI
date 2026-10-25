@@ -993,3 +993,41 @@ html {
 body {
   overflow-x: hidden;
 }
+
+/* === FASE 3: AJUSTES, RESPALDO Y ALMACENAMIENTO === */
+.settings-card { padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+.settings-card h4 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1rem;
+  color: var(--text-main);
+}
+.settings-card h4 svg { width: 18px; height: 18px; color: var(--primary); }
+.settings-desc { color: var(--text-muted); font-size: 0.88rem; line-height: 1.55; }
+.settings-hint { color: var(--text-muted); font-size: 0.78rem; line-height: 1.5; }
+.settings-hint code {
+  background-color: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 1px 6px;
+  font-size: 0.75rem;
+}
+.settings-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.settings-actions .btn { flex: 1 1 180px; }
+.storage-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.storage-item {
+  background-color: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.storage-item span { color: var(--text-muted); font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+.storage-item strong { font-size: 1.3rem; color: var(--primary); }
+
+@media (min-width: 640px) {
+  .storage-grid { grid-template-columns: repeat(4, 1fr); }
+}

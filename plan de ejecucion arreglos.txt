@@ -89,8 +89,8 @@
 - El usuario puede exportar su base de datos completa y restaurarla en otro dispositivo mediante el archivo JSON compatible con Drive.
 
 ### Pruebas Browser-QA
-- [ ] DevTools > Storage > IndexedDB: Verificar creación de los 5 almacenes y claves primarias.
-- [ ] Exportar respaldo JSON, limpiar datos y restaurar desde el JSON validando coincidencia 100%.
+- [x] DevTools > Storage > IndexedDB: Verificar creación de los 5 almacenes y claves primarias.
+- [x] Exportar respaldo JSON, limpiar datos y restaurar desde el JSON validando coincidencia 100%.
 
 ---
 

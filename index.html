@@ -317,9 +317,49 @@
         <div class="section-header">
           <h2><i data-lucide="settings"></i> Ajustes y Costos</h2>
         </div>
-        <div class="card empty-state">
-          <i data-lucide="wrench"></i>
-          <p><strong>Módulo en construcción.</strong> Costos de combustible, mantenimiento y sincronización llegarán en las <strong>Fases 3 y 5</strong>.</p>
+
+        <div class="card settings-card">
+          <h4><i data-lucide="hard-drive-download"></i> Respaldo y Restauración</h4>
+          <p class="settings-desc">
+            Tus datos viven en este dispositivo (IndexedDB). Exporta un respaldo JSON y guárdalo en Google Drive
+            para tenerlo a salvo o pasarlo a otro teléfono.
+          </p>
+          <div class="settings-actions">
+            <button type="button" id="btn-exportar-respaldo" class="btn btn-primary">
+              <i data-lucide="download"></i>
+              <span>Exportar respaldo</span>
+            </button>
+            <button type="button" id="btn-importar-respaldo" class="btn btn-outline">
+              <i data-lucide="upload"></i>
+              <span>Importar respaldo</span>
+            </button>
+            <input type="file" id="input-importar-respaldo" accept="application/json,.json" class="hidden" />
+          </div>
+          <p class="settings-hint">
+            En móvil, el respaldo se abre en el menú de compartir (elige Google Drive). En PC eliges la carpeta de
+            destino. La restauración reemplaza los datos actuales.
+          </p>
+        </div>
+
+        <div class="card settings-card">
+          <h4><i data-lucide="database"></i> Almacenamiento Local</h4>
+          <div class="storage-grid">
+            <div class="storage-item"><span>Jornadas</span><strong id="db-stat-jornadas">0</strong></div>
+            <div class="storage-item"><span>Viajes</span><strong id="db-stat-viajes">0</strong></div>
+            <div class="storage-item"><span>Tanqueadas</span><strong id="db-stat-tanqueadas">0</strong></div>
+            <div class="storage-item"><span>Gastos</span><strong id="db-stat-gastos">0</strong></div>
+          </div>
+          <p class="settings-hint">
+            Base de datos: <code>DidiTrackerDB</code> · 5 almacenes · Migración automática desde versiones anteriores.
+          </p>
+        </div>
+
+        <div class="card settings-card">
+          <h4><i data-lucide="wrench"></i> Costos y Combustible</h4>
+          <p class="settings-desc">
+            La configuración avanzada de costos de mantenimiento y control de tanqueadas llegará en la
+            <strong>Fase 5</strong>.
+          </p>
         </div>
       </div>
     </div>
@@ -528,6 +568,7 @@
   <!-- CONTENEDOR DE NOTIFICACIONES TOAST -->
   <div id="toast-container" class="toast-container" aria-live="polite"></div>
 
+  <script src="js/db.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

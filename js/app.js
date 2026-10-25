@@ -100,10 +100,53 @@ function generarId() {
 }
 
 // ==========================================
-// 2. PERSISTENCIA EN LOCALSTORAGE
+// 2. PERSISTENCIA LOCAL-FIRST (INDEXEDDB + ESPEJO LOCALSTORAGE)
 // ==========================================
 
-function cargarDatos() {
+/**
+ * Carga la jornada activa desde IndexedDB (fuente de la verdad).
+ * Si la base está vacía y existen datos de la versión anterior en
+ * localStorage, se migran de forma transparente sin pérdida de datos.
+ * Si IndexedDB falla, se usa localStorage como respaldo.
+ */
+async function cargarDatos() {
+  try {
+    await DidiDB.contarRegistros(); // fuerza apertura/creación de DidiTrackerDB
+    await migrarDesdeLocalStorageSiHaceFalta();
+
+    const jornada = await DidiDB.obtenerJornadaActiva();
+    if (jornada) {
+      const [viajes, tanqueadas, config] = await Promise.all([
+        DidiDB.obtenerViajesDeJornada(jornada.id),
+        DidiDB.obtenerTanqueadasDeJornada(jornada.id),
+        DidiDB.obtenerConfig()
+      ]);
+
+      appData = {
+        config: {
+          ...DEFAULT_CONFIG,
+          ...config
+        },
+        sesionActual: {
+          id: jornada.id,
+          fechaInicio: jornada.fechaInicio || new Date().toISOString(),
+          estado: jornada.estado || 'activa',
+          viajes: Array.isArray(viajes) ? viajes : [],
+          tanqueadas: Array.isArray(tanqueadas) ? tanqueadas : []
+        }
+      };
+      return;
+    }
+
+    // Sin jornada activa en la base: intentar el espejo de localStorage
+    cargarDesdeLocalStorage();
+  } catch (error) {
+    console.warn('DIDI Tracker: IndexedDB no disponible, usando localStorage:', error.message);
+    cargarDesdeLocalStorage();
+  }
+}
+
+function cargarDesdeLocalStorage() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) {
@@ -118,7 +161,9 @@ function cargarDatos() {
         ...(parsed.config || {})
       },
       sesionActual: {
+        id: parsed.sesionActual?.id || generarId(),
         fechaInicio: parsed.sesionActual?.fechaInicio || new Date().toISOString(),
+        estado: parsed.sesionActual?.estado || 'activa',
         viajes: Array.isArray(parsed.sesionActual?.viajes) ? parsed.sesionActual.viajes : [],
         tanqueadas: Array.isArray(parsed.sesionActual?.tanqueadas) ? parsed.sesionActual.tanqueadas : []
       }
@@ -133,12 +178,75 @@ function inicializarDatosPorDefecto() {
   appData = {
     config: { ...DEFAULT_CONFIG },
     sesionActual: {
+      id: generarId(),
       fechaInicio: new Date().toISOString(),
+      estado: 'activa',
       viajes: [],
       tanqueadas: []
     }
   };
   guardarDatos();
+}
+
+/**
+ * Migración transparente: si DidiTrackerDB no tiene jornadas pero existe
+ * la clave antigua `didi_tracker_data` en localStorage, se importa todo.
+ */
+async function migrarDesdeLocalStorageSiHaceFalta() {
+  const conteo = await DidiDB.contarRegistros();
+  if (conteo.jornadas > 0) return false;
+
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) return false;
+
+  try {
+    const parsed = JSON.parse(raw);
+    const sesion = parsed.sesionActual || {};
+    const config = { ...DEFAULT_CONFIG, ...(parsed.config || {}) };
+    const fechaInicio = sesion.fechaInicio || new Date().toISOString();
+    const jornadaId =
+      sesion.id || `jornada_${new Date(fechaInicio).getTime().toString(36)}`;
+
+    const viajes = (Array.isArray(sesion.viajes) ? sesion.viajes : []).map(viaje => {
+      const metricas = calcularMetricasViaje(viaje, config);
+      return {
+        id: metricas.id,
+        timestamp: metricas.timestamp,
+        distRecogidaKm: metricas.distRecogidaKm,
+        distEntregaKm: metricas.distEntregaKm,
+        dTotal: metricas.dTotal,
+        tTotal: metricas.tTotal,
+        precioCOP: metricas.precioCOP,
+        metodoPago: metricas.metodoPago,
+        copHora: metricas.copHora,
+        copKm: metricas.copKm,
+        semaforo: metricas.semaforo
+      };
+    });
+
+    const tanqueadas = (Array.isArray(sesion.tanqueadas) ? sesion.tanqueadas : []).map(t => ({
+      id: t.id,
+      timestamp: t.timestamp,
+      montoCOP: t.montoCOP,
+      galones: t.galones,
+      nota: t.nota
+    }));
+
+    await DidiDB.guardarJornada(
+      { id: jornadaId, fechaInicio, fechaFin: null, estado: 'activa' },
+      viajes,
+      tanqueadas
+    );
+    await DidiDB.guardarConfig(config);
+
+    console.info(
+      `DIDI Tracker: migrados ${viajes.length} viajes y ${tanqueadas.length} tanqueadas a IndexedDB.`
+    );
+    return true;
+  } catch (error) {
+    console.warn('DIDI Tracker: falló la migración a IndexedDB:', error.message);
+    return false;
+  }
 }
 
 function guardarDatos() {
@@ -147,6 +255,58 @@ function guardarDatos() {
   } catch (error) {
     console.error('Error al guardar en localStorage:', error);
   }
+  persistirEnIndexedDB();
+}
+
+/**
+ * Persiste la jornada activa completa en IndexedDB.
+ * Devuelve la promesa para poder esperar el flush antes de exportar.
+ */
+function persistirEnIndexedDB() {
+  if (typeof DidiDB === 'undefined' || !appData.sesionActual?.id) return null;
+
+  const jornadaId = appData.sesionActual.id;
+
+  const viajes = appData.sesionActual.viajes.map(viaje => {
+    const metricas = calcularMetricasViaje(viaje);
+    return {
+      id: metricas.id,
+      timestamp: metricas.timestamp,
+      distRecogidaKm: metricas.distRecogidaKm,
+      distEntregaKm: metricas.distEntregaKm,
+      dTotal: metricas.dTotal,
+      tTotal: metricas.tTotal,
+      precioCOP: metricas.precioCOP,
+      metodoPago: metricas.metodoPago,
+      copHora: metricas.copHora,
+      copKm: metricas.copKm,
+      semaforo: metricas.semaforo
+    };
+  });
+
+  const tanqueadas = appData.sesionActual.tanqueadas.map(t => ({
+    id: t.id,
+    timestamp: t.timestamp,
+    montoCOP: t.montoCOP,
+    galones: t.galones,
+    nota: t.nota
+  }));
+
+  const jornada = {
+    id: jornadaId,
+    fechaInicio: appData.sesionActual.fechaInicio,
+    fechaFin: null,
+    estado: appData.sesionActual.estado || 'activa'
+  };
+
+  return DidiDB.guardarJornada(jornada, viajes, tanqueadas)
+    .then(() => DidiDB.guardarConfig(appData.config))
+    .then(() => {
+      actualizarEstadoAlmacenamiento();
+    })
+    .catch(error => {
+      console.warn('DIDI Tracker: no se pudo guardar en IndexedDB:', error.message);
+    });
 }
 
 // ==========================================
@@ -1110,7 +1270,9 @@ function reiniciarJornada() {
     if (!confirmar) return;
 
     appData.sesionActual = {
+      id: generarId(),
       fechaInicio: new Date().toISOString(),
+      estado: 'activa',
       viajes: [],
       tanqueadas: []
     };
@@ -1451,6 +1613,147 @@ function inicializarNavegacion() {
 }
 
 // ==========================================
+// 8C. RESPALDO JSON / GOOGLE DRIVE (FASE 3)
+// ==========================================
+
+async function actualizarEstadoAlmacenamiento() {
+  if (typeof DidiDB === 'undefined') return;
+  try {
+    const conteo = await DidiDB.contarRegistros();
+    const setStat = (id, valor) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = String(valor);
+    };
+    setStat('db-stat-jornadas', conteo.jornadas);
+    setStat('db-stat-viajes', conteo.viajes);
+    setStat('db-stat-tanqueadas', conteo.tanqueadas);
+    setStat('db-stat-gastos', conteo.gastosPuntuales);
+  } catch (error) {
+    console.warn('DIDI Tracker: no se pudo leer el estado de IndexedDB:', error.message);
+  }
+}
+
+/**
+ * Flujo de respaldo:
+ * 1. Móvil: Web Share API → permite guardar directo en Google Drive/WhatsApp.
+ * 2. PC Chromium: File System Access API → elegir carpeta.
+ * 3. Fallback universal: descarga tradicional del archivo.
+ */
+async function exportarRespaldo() {
+  if (typeof DidiDB === 'undefined') {
+    showToast('IndexedDB no está disponible en este navegador.', 'danger');
+    return;
+  }
+
+  try {
+    const flush = persistirEnIndexedDB();
+    if (flush) await flush;
+
+    const datos = await DidiDB.exportarTodo();
+    const nombre = `didi_backup_${new Date().toISOString().slice(0, 10)}.json`;
+    const json = JSON.stringify(datos, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const archivo = new File([blob], nombre, { type: 'application/json' });
+
+    // 1) Web Share API (móvil → menú de compartir, incluye Google Drive)
+    if (navigator.canShare && navigator.canShare({ files: [archivo] })) {
+      try {
+        await navigator.share({
+          files: [archivo],
+          title: 'Respaldo DIDI Pro',
+          text: 'Respaldo de datos de DIDI Tracker'
+        });
+        showToast('Respaldo compartido. Guárdalo en Google Drive.', 'success');
+        return;
+      } catch (error) {
+        if (error.name === 'AbortError') {
+          showToast('Envío del respaldo cancelado.', 'info');
+          return;
+        }
+        // Si falla el share, continuar con los otros métodos
+      }
+    }
+
+    // 2) File System Access API (PC Chromium → elegir carpeta)
+    if (typeof window.showSaveFilePicker === 'function') {
+      try {
+        const handle = await window.showSaveFilePicker({
+          suggestedName: nombre,
+          types: [{ description: 'Respaldo JSON', accept: { 'application/json': ['.json'] } }]
+        });
+        const writable = await handle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+        showToast('Respaldo guardado en la carpeta elegida.', 'success');
+        return;
+      } catch (error) {
+        if (error.name === 'AbortError') {
+          showToast('Guardado del respaldo cancelado.', 'info');
+          return;
+        }
+        // Si el picker no está disponible, usar descarga
+      }
+    }
+
+    // 3) Descarga universal
+    const url = URL.createObjectURL(blob);
+    const enlace = document.createElement('a');
+    enlace.href = url;
+    enlace.download = nombre;
+    document.body.appendChild(enlace);
+    enlace.click();
+    enlace.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    showToast('Respaldo descargado. Súbelo a tu Google Drive.', 'success');
+  } catch (error) {
+    showToast('No se pudo exportar el respaldo: ' + error.message, 'danger', 5000);
+  }
+}
+
+async function importarRespaldo(archivo) {
+  if (typeof DidiDB === 'undefined') {
+    showToast('IndexedDB no está disponible en este navegador.', 'danger');
+    return;
+  }
+
+  try {
+    const texto = await archivo.text();
+    const datos = JSON.parse(texto);
+    const restaurado = await DidiDB.importarTodo(datos);
+
+    await cargarDatos();
+    renderDashboard();
+    actualizarEstadoAlmacenamiento();
+    guardarDatos();
+
+    showToast(
+      `Respaldo restaurado: ${restaurado.jornadas} jornadas, ${restaurado.viajes} viajes.`,
+      'success',
+      4500
+    );
+  } catch (error) {
+    showToast('No se pudo restaurar el respaldo: ' + error.message, 'danger', 5000);
+  }
+}
+
+function configurarRespaldo() {
+  const btnExportar = document.getElementById('btn-exportar-respaldo');
+  const btnImportar = document.getElementById('btn-importar-respaldo');
+  const inputImportar = document.getElementById('input-importar-respaldo');
+
+  if (btnExportar) btnExportar.addEventListener('click', exportarRespaldo);
+
+  if (btnImportar && inputImportar) {
+    btnImportar.addEventListener('click', () => inputImportar.click());
+    inputImportar.addEventListener('change', () => {
+      const archivo = inputImportar.files && inputImportar.files[0];
+      if (archivo) importarRespaldo(archivo);
+      inputImportar.value = '';
+    });
+  }
+}
+
+// ==========================================
 // 9. INICIALIZACIÓN DE LA APLICACIÓN
 // ==========================================
 
@@ -1475,13 +1778,26 @@ function registrarServiceWorker() {
   }).catch(error => {
     console.warn('DIDI Tracker: registro de Service Worker falló:', error.message);
   });
+
+  // Al activarse una nueva versión del SW, recargar para evitar servir
+  // HTML/JS desactualizados mezclados con la nueva lógica de datos.
+  // Solo si ya existía un SW controlando (no en la primera instalación).
+  const habiaControladorInicial = !!navigator.serviceWorker.controller;
+  let recargandoPorSW = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!habiaControladorInicial || recargandoPorSW) return;
+    recargandoPorSW = true;
+    window.location.reload();
+  });
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  cargarDatos();
+document.addEventListener('DOMContentLoaded', async () => {
+  await cargarDatos();
   configurarEventListeners();
+  configurarRespaldo();
   inicializarNavegacion();
   renderDashboard();
+  actualizarEstadoAlmacenamiento();
   if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') {
     lucide.createIcons();
   }
