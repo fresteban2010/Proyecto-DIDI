@@ -6,7 +6,7 @@
  *  - CDNs (Chart.js, Lucide, Google Fonts): Cache-First.
  */
 
-const SW_CACHE = 'didi-tracker-v5';
+const SW_CACHE = 'didi-tracker-v6';
 
 // Assets locales esenciales para operación offline
 const LOCAL_ASSETS = [
@@ -15,14 +15,16 @@ const LOCAL_ASSETS = [
   './css/styles.css',
   './js/db.js',
   './js/app.js',
-  './assets/icons/manifest.json',
+  './manifest.json',
   './assets/icons/logo-tacometro.png',
   './assets/icons/favicon.svg',
   './assets/icons/favicon-16x16.png',
   './assets/icons/favicon-32x32.png',
   './assets/icons/apple-touch-icon.png',
   './assets/icons/pwa-icon-192.png',
-  './assets/icons/pwa-icon-512.png'
+  './assets/icons/pwa-icon-512.png',
+  './assets/icons/pwa-icon-192-maskable.png',
+  './assets/icons/pwa-icon-512-maskable.png'
 ];
 
 const CDN_PREFIXES = [

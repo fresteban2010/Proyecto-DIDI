@@ -1,0 +1,78 @@
+{
+  "id": "./",
+  "name": "DIDI Pro - Monitor de Ganancias y Rentabilidad",
+  "short_name": "DIDI Pro",
+  "description": "Monitor de ganancias, auditoría de rentabilidad en tiempo real y control de gasolina para conductores de plataformas de transporte en Colombia.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait",
+  "background_color": "#0B0F19",
+  "theme_color": "#FF6600",
+  "lang": "es-CO",
+  "dir": "ltr",
+  "categories": ["finance", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "assets/icons/pwa-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icons/pwa-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icons/pwa-icon-192-maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "assets/icons/pwa-icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "assets/screenshots/mobile.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Panel de rentabilidad del turno activo"
+    },
+    {
+      "src": "assets/screenshots/desktop.png",
+      "sizes": "1280x800",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Dashboard de ganancias en escritorio"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Turno activo",
+      "short_name": "Turno",
+      "url": "./index.html?view=turno",
+      "icons": [{ "src": "assets/icons/pwa-icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Calculadora pre-viaje",
+      "short_name": "Calculadora",
+      "url": "./index.html?view=calculadora",
+      "icons": [{ "src": "assets/icons/pwa-icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Historial y reportes",
+      "short_name": "Historial",
+      "url": "./index.html?view=historial",
+      "icons": [{ "src": "assets/icons/pwa-icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

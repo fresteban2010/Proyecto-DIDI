@@ -3031,7 +3031,163 @@ function configurarRespaldo() {
 }
 
 // ==========================================
-// 9. INICIALIZACIÓN DE LA APLICACIÓN
+// 9. INSTALACIÓN PWA
+// ==========================================
+const INSTALL_BANNER_KEY = 'didi_install_banner_dismissed';
+let deferredInstallPrompt = null;
+
+function esModoStandalone() {
+  return (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.matchMedia('(display-mode: minimal-ui)').matches ||
+    window.navigator.standalone === true
+  );
+}
+
+function esIOS() {
+  return (
+    /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  );
+}
+
+function actualizarUIInstalacion() {
+  const boton = document.getElementById('btn-instalar-app');
+  const estado = document.getElementById('install-estado');
+  const hint = document.getElementById('install-hint');
+  const banner = document.getElementById('install-banner');
+  const yaInstalada = esModoStandalone();
+
+  if (yaInstalada) {
+    if (estado) estado.textContent = 'DIDI Pro ya está instalada y se abre como aplicación.';
+    if (boton) boton.classList.add('hidden');
+    if (banner) banner.classList.add('hidden');
+    if (hint) hint.textContent = 'Puedes abrirla desde el icono en la pantalla de inicio.';
+    return;
+  }
+
+  if (boton) boton.classList.remove('hidden');
+
+  if (deferredInstallPrompt) {
+    if (estado) {
+      estado.textContent =
+        'Instala DIDI Pro en tu teléfono para abrirla como app, sin barra del navegador y con acceso offline.';
+    }
+    if (hint) hint.textContent = 'El instalador del navegador se abrirá con un toque.';
+  } else if (esIOS()) {
+    if (estado) estado.textContent = 'En iPhone se instala desde Safari con dos toques.';
+    if (hint) hint.textContent = 'Toca el botón y sigue los pasos.';
+  } else {
+    if (estado) {
+      estado.textContent =
+        'Abre esta página en Chrome (Android) o Safari (iPhone) para instalarla como aplicación.';
+    }
+    if (hint) hint.textContent = 'Si no ves el instalador, usa el menú del navegador → Instalar aplicación.';
+  }
+
+  const bannerDescartado = localStorage.getItem(INSTALL_BANNER_KEY) === '1';
+  if (banner) {
+    banner.classList.toggle('hidden', bannerDescartado || !(deferredInstallPrompt || esIOS()));
+  }
+}
+
+async function instalarApp() {
+  if (esModoStandalone()) return;
+
+  if (deferredInstallPrompt) {
+    deferredInstallPrompt.prompt();
+    const eleccion = await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+    if (eleccion && eleccion.outcome === 'accepted') {
+      showToast('Instalando DIDI Pro…', 'success');
+    }
+    actualizarUIInstalacion();
+    return;
+  }
+
+  abrirModalInstalar();
+}
+
+function abrirModalInstalar() {
+  const modal = document.getElementById('modal-instalar');
+  const pasos = document.getElementById('install-pasos');
+  if (!modal || !pasos) return;
+
+  if (esIOS()) {
+    pasos.innerHTML = `
+      <ol class="install-pasos">
+        <li>Abre esta página en <strong>Safari</strong>.</li>
+        <li>Toca el botón <strong>Compartir</strong> (cuadrado con flecha).</li>
+        <li>Elige <strong>Añadir a pantalla de inicio</strong>.</li>
+        <li>Confirma con <strong>Añadir</strong>.</li>
+      </ol>
+      <p class="settings-hint">En iPhone, la instalación solo está disponible desde Safari.</p>`;
+  } else {
+    pasos.innerHTML = `
+      <ol class="install-pasos">
+        <li>Abre el menú <strong>⋮</strong> de Chrome.</li>
+        <li>Toca <strong>Instalar aplicación</strong> o <strong>Añadir a pantalla de inicio</strong>.</li>
+        <li>Confirma con <strong>Instalar</strong>.</li>
+      </ol>
+      <p class="settings-hint">Si no aparece la opción, recarga la página y espera unos segundos.</p>`;
+  }
+
+  modal.classList.remove('hidden');
+  modal.setAttribute('aria-hidden', 'false');
+}
+
+function configurarInstalacionPWA() {
+  const boton = document.getElementById('btn-instalar-app');
+  const bannerBoton = document.getElementById('btn-banner-instalar');
+  const cerrarBanner = document.getElementById('btn-cerrar-banner');
+  const modal = document.getElementById('modal-instalar');
+  const cerrarModal = document.getElementById('btn-cerrar-modal-instalar');
+  const entendido = document.getElementById('btn-cerrar-instalar');
+
+  window.addEventListener('beforeinstallprompt', evento => {
+    evento.preventDefault();
+    deferredInstallPrompt = evento;
+    actualizarUIInstalacion();
+  });
+
+  window.addEventListener('appinstalled', () => {
+    deferredInstallPrompt = null;
+    localStorage.removeItem(INSTALL_BANNER_KEY);
+    showToast('DIDI Pro instalada correctamente.', 'success');
+    actualizarUIInstalacion();
+  });
+
+  [boton, bannerBoton].forEach(elemento => {
+    if (elemento) elemento.addEventListener('click', instalarApp);
+  });
+
+  if (cerrarBanner) {
+    cerrarBanner.addEventListener('click', () => {
+      localStorage.setItem(INSTALL_BANNER_KEY, '1');
+      const banner = document.getElementById('install-banner');
+      if (banner) banner.classList.add('hidden');
+    });
+  }
+
+  const cerrar = () => {
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.setAttribute('aria-hidden', 'true');
+  };
+  [cerrarModal, entendido].forEach(elemento => {
+    if (elemento) elemento.addEventListener('click', cerrar);
+  });
+  if (modal) {
+    modal.addEventListener('click', evento => {
+      if (evento.target === modal) cerrar();
+    });
+  }
+
+  actualizarUIInstalacion();
+}
+
+// ==========================================
+// 10. INICIALIZACIÓN DE LA APLICACIÓN
 // ==========================================
 
 // Registro del Service Worker (PWA offline) con control de ciclo de vida
@@ -3074,12 +3230,21 @@ document.addEventListener('DOMContentLoaded', async () => {
   configurarRespaldo();
   configurarReportes();
   configurarAjustesCostos();
+  configurarInstalacionPWA();
   inicializarNavegacion();
   inicializarCalculadora();
   aplicarModoFormularioViaje('rapido');
   actualizarBotonAudio();
   renderDashboard();
   actualizarEstadoAlmacenamiento();
+
+  // Atajos del manifest: abrir la vista indicada por ?view=
+  const vistaSolicitada = new URLSearchParams(window.location.search).get('view');
+  const vistasValidas = ['turno', 'calculadora', 'historial', 'ajustes'];
+  if (vistaSolicitada && vistasValidas.includes(vistaSolicitada)) {
+    const botonVista = document.querySelector(`.nav-item[data-view="${vistaSolicitada}"]`);
+    if (botonVista) botonVista.click();
+  }
 
   // Desbloqueo del AudioContext en el primer gesto real del usuario
   ['pointerdown', 'keydown'].forEach(evento => {
