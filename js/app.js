@@ -22,7 +22,8 @@ const DEFAULT_CONFIG = {
   rendimientoGalonKm: 40,
   precioGalonCOP: 16000,
   metaDiaria: 150000,
-  tarifaMinimaBonus: 8500
+  tarifaMinimaBonus: 8500,
+  audioSilenciado: false
 };
 
 // Estado global de la aplicación
@@ -131,7 +132,7 @@ async function cargarDatos() {
           id: jornada.id,
           fechaInicio: jornada.fechaInicio || new Date().toISOString(),
           estado: jornada.estado || 'activa',
-          viajes: Array.isArray(viajes) ? viajes : [],
+          viajes: (Array.isArray(viajes) ? viajes : []).map(normalizarViajeDesdeDB),
           tanqueadas: Array.isArray(tanqueadas) ? tanqueadas : []
         }
       };
@@ -144,6 +145,26 @@ async function cargarDatos() {
     console.warn('DIDI Tracker: IndexedDB no disponible, usando localStorage:', error.message);
     cargarDesdeLocalStorage();
   }
+}
+
+/**
+ * Repara registros antiguos de IndexedDB que solo guardaban dTotal/tTotal:
+ * sin los campos de detalle, recalcular COP/h daría 0 tras una recarga.
+ */
+function normalizarViajeDesdeDB(viaje) {
+  const tieneDetalle =
+    Object.prototype.hasOwnProperty.call(viaje, 'tiempoEntregaMin') ||
+    Object.prototype.hasOwnProperty.call(viaje, 'tiempoRecogidaMin');
+
+  return {
+    ...viaje,
+    distRecogidaKm: Number(viaje.distRecogidaKm) || 0,
+    tiempoRecogidaMin: Number(viaje.tiempoRecogidaMin) || 0,
+    distEntregaKm: Number(viaje.distEntregaKm) || Number(viaje.dTotal) || 0,
+    tiempoEntregaMin: tieneDetalle
+      ? Number(viaje.tiempoEntregaMin) || 0
+      : Number(viaje.tTotal) || 0
+  };
 }
 
 function cargarDesdeLocalStorage() {
@@ -213,7 +234,9 @@ async function migrarDesdeLocalStorageSiHaceFalta() {
         id: metricas.id,
         timestamp: metricas.timestamp,
         distRecogidaKm: metricas.distRecogidaKm,
+        tiempoRecogidaMin: metricas.tiempoRecogidaMin,
         distEntregaKm: metricas.distEntregaKm,
+        tiempoEntregaMin: metricas.tiempoEntregaMin,
         dTotal: metricas.dTotal,
         tTotal: metricas.tTotal,
         precioCOP: metricas.precioCOP,
@@ -273,7 +296,9 @@ function persistirEnIndexedDB() {
       id: metricas.id,
       timestamp: metricas.timestamp,
       distRecogidaKm: metricas.distRecogidaKm,
+      tiempoRecogidaMin: metricas.tiempoRecogidaMin,
       distEntregaKm: metricas.distEntregaKm,
+      tiempoEntregaMin: metricas.tiempoEntregaMin,
       dTotal: metricas.dTotal,
       tTotal: metricas.tTotal,
       precioCOP: metricas.precioCOP,
@@ -1054,6 +1079,9 @@ function abrirModalViaje(viajeParaEditar = null) {
 
   form.reset();
 
+  // Modo del formulario: editar siempre en detallado; crear por defecto en rápido
+  aplicarModoFormularioViaje(viajeParaEditar ? 'detallado' : 'rapido');
+
   const inputId = document.getElementById('viaje-id');
   const inputDistRec = document.getElementById('distRecogidaKm');
   const inputTiempoRec = document.getElementById('tiempoRecogidaMin');
@@ -1090,7 +1118,10 @@ function abrirModalViaje(viajeParaEditar = null) {
   }
 
   mostrarModal(modal);
-  if (inputDistRec) setTimeout(() => inputDistRec.focus(), 50);
+  const primerCampo = viajeParaEditar
+    ? inputDistRec
+    : document.getElementById('rapidoDistanciaKm');
+  if (primerCampo) setTimeout(() => primerCampo.focus(), 50);
 }
 
 function cerrarModalViaje() {
@@ -1106,11 +1137,28 @@ function guardarViajeDesdeFormulario(evento) {
   evento.preventDefault();
 
   const idExistente = document.getElementById('viaje-id')?.value?.trim();
-  const distRecogidaKm = parseFloat(document.getElementById('distRecogidaKm')?.value) || 0;
-  const tiempoRecogidaMin = parseFloat(document.getElementById('tiempoRecogidaMin')?.value) || 0;
-  const distEntregaKm = parseFloat(document.getElementById('distEntregaKm')?.value) || 0;
-  const tiempoEntregaMin = parseFloat(document.getElementById('tiempoEntregaMin')?.value) || 0;
-  const precioCOP = parseFloat(document.getElementById('precioCOP')?.value) || 0;
+  let distRecogidaKm;
+  let tiempoRecogidaMin;
+  let distEntregaKm;
+  let tiempoEntregaMin;
+  let precioCOP;
+
+  if (modoFormularioViaje === 'rapido') {
+    // Modo rápido: distancia y tiempo totales equivalen a la entrega
+    const distanciaTotal = parseFloat(document.getElementById('rapidoDistanciaKm')?.value) || 0;
+    const tiempoTotal = parseFloat(document.getElementById('rapidoTiempoMin')?.value) || 0;
+    precioCOP = parseFloat(document.getElementById('rapidoPrecioCOP')?.value) || 0;
+    distRecogidaKm = 0;
+    tiempoRecogidaMin = 0;
+    distEntregaKm = distanciaTotal;
+    tiempoEntregaMin = tiempoTotal;
+  } else {
+    distRecogidaKm = parseFloat(document.getElementById('distRecogidaKm')?.value) || 0;
+    tiempoRecogidaMin = parseFloat(document.getElementById('tiempoRecogidaMin')?.value) || 0;
+    distEntregaKm = parseFloat(document.getElementById('distEntregaKm')?.value) || 0;
+    tiempoEntregaMin = parseFloat(document.getElementById('tiempoEntregaMin')?.value) || 0;
+    precioCOP = parseFloat(document.getElementById('precioCOP')?.value) || 0;
+  }
 
   const radioSeleccionado = document.querySelector('input[name="metodoPago"]:checked');
   const metodoValor = radioSeleccionado ? radioSeleccionado.value : 'Efectivo';
@@ -1164,6 +1212,17 @@ function guardarViajeDesdeFormulario(evento) {
   guardarDatos();
   cerrarModalViaje();
   renderDashboard();
+
+  const metricasGuardadas = calcularMetricasViaje({
+    distRecogidaKm,
+    tiempoRecogidaMin,
+    distEntregaKm,
+    tiempoEntregaMin,
+    precioCOP,
+    metodoPago
+  });
+  reproducirTono(metricasGuardadas.semaforo);
+
   showToast(
     idExistente ? 'Carrera actualizada correctamente.' : 'Carrera registrada correctamente.',
     'success'
@@ -1401,6 +1460,20 @@ function configurarEventListeners() {
   const btnReiniciar = document.getElementById('btn-reiniciar-jornada');
   if (btnReiniciar) btnReiniciar.addEventListener('click', reiniciarJornada);
 
+  const btnAudio = document.getElementById('btn-toggle-audio');
+  if (btnAudio) btnAudio.addEventListener('click', alternarAudio);
+
+  // Selector Modo Rápido / Desglose Detallado
+  document.querySelectorAll('.form-mode-toggle .mode-btn').forEach(boton => {
+    boton.addEventListener('click', () => {
+      aplicarModoFormularioViaje(boton.dataset.modo);
+      const idCampo =
+        boton.dataset.modo === 'rapido' ? 'rapidoDistanciaKm' : 'distRecogidaKm';
+      const campo = document.getElementById(idCampo);
+      if (campo) setTimeout(() => campo.focus(), 40);
+    });
+  });
+
   const btnAbrirViaje = document.getElementById('btn-abrir-modal-viaje');
   if (btnAbrirViaje) btnAbrirViaje.addEventListener('click', () => abrirModalViaje(null));
 
@@ -1613,6 +1686,387 @@ function inicializarNavegacion() {
 }
 
 // ==========================================
+// 8D. AUDIO SINTÉTICO, MODO RÁPIDO Y CALCULADORA (FASE 4)
+// ==========================================
+
+// --- Motor de audio sintético (Web Audio API, sin archivos MP3) ---
+let audioCtx = null;
+
+function obtenerAudioContext() {
+  if (audioCtx) {
+    if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+    return audioCtx;
+  }
+  const Ctor = window.AudioContext || window.webkitAudioContext;
+  if (!Ctor) return null;
+  try {
+    audioCtx = new Ctor();
+  } catch (error) {
+    return null;
+  }
+  if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+  return audioCtx;
+}
+
+// Desbloquea el AudioContext en el primer gesto real del usuario
+function desbloquearAudio() {
+  const ctx = obtenerAudioContext();
+  if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {});
+}
+
+function programarTono(ctx, { frecuenciaInicial, frecuenciaFinal, inicio, duracion, ganancia = 0.16 }) {
+  const oscilador = ctx.createOscillator();
+  const envolvente = ctx.createGain();
+
+  oscilador.type = 'sine';
+  oscilador.frequency.setValueAtTime(frecuenciaInicial, inicio);
+  if (frecuenciaFinal && frecuenciaFinal !== frecuenciaInicial) {
+    oscilador.frequency.exponentialRampToValueAtTime(frecuenciaFinal, inicio + duracion);
+  }
+
+  // Envolvente suave para evitar clics
+  envolvente.gain.setValueAtTime(0.0001, inicio);
+  envolvente.gain.exponentialRampToValueAtTime(ganancia, inicio + 0.012);
+  envolvente.gain.exponentialRampToValueAtTime(0.0001, inicio + duracion);
+
+  oscilador.connect(envolvente).connect(ctx.destination);
+  oscilador.start(inicio);
+  oscilador.stop(inicio + duracion + 0.03);
+}
+
+/**
+ * Reproduce el tono del semáforo:
+ *  - verde:    dual agudo ascendente 880 → 1200 Hz (120 ms)
+ *  - amarillo: neutro estable 660 Hz (150 ms)
+ *  - rojo:     grave descendente 330 → 220 Hz (200 ms)
+ */
+function reproducirTono(semaforo) {
+  if (appData?.config?.audioSilenciado) return false;
+
+  const ctx = obtenerAudioContext();
+  if (!ctx) return false;
+
+  const ahora = ctx.currentTime + 0.02;
+
+  if (semaforo === 'verde') {
+    programarTono(ctx, {
+      frecuenciaInicial: 880,
+      frecuenciaFinal: 1200,
+      inicio: ahora,
+      duracion: 0.12,
+      ganancia: 0.14
+    });
+    programarTono(ctx, {
+      frecuenciaInicial: 880,
+      frecuenciaFinal: 1200,
+      inicio: ahora + 0.07,
+      duracion: 0.08,
+      ganancia: 0.09
+    });
+  } else if (semaforo === 'amarillo') {
+    programarTono(ctx, {
+      frecuenciaInicial: 660,
+      frecuenciaFinal: 660,
+      inicio: ahora,
+      duracion: 0.15,
+      ganancia: 0.14
+    });
+  } else {
+    programarTono(ctx, {
+      frecuenciaInicial: 330,
+      frecuenciaFinal: 220,
+      inicio: ahora,
+      duracion: 0.2,
+      ganancia: 0.17
+    });
+  }
+
+  // Hook de diagnóstico para pruebas automatizadas
+  window.__ultimoTono = {
+    semaforo,
+    iniciadoEn: new Date().toISOString(),
+    estadoAudio: ctx.state
+  };
+  return true;
+}
+
+function actualizarBotonAudio() {
+  const boton = document.getElementById('btn-toggle-audio');
+  if (!boton) return;
+
+  const silenciado = !!appData?.config?.audioSilenciado;
+  boton.setAttribute('aria-pressed', silenciado ? 'true' : 'false');
+  boton.setAttribute('aria-label', silenciado ? 'Activar sonidos' : 'Silenciar sonidos');
+  boton.setAttribute('title', silenciado ? 'Activar sonidos' : 'Silenciar sonidos');
+  boton.classList.toggle('muted', silenciado);
+  boton.innerHTML = `<i data-lucide="${silenciado ? 'volume-x' : 'volume-2'}"></i><span>Audio</span>`;
+
+  if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') {
+    lucide.createIcons();
+  }
+}
+
+function alternarAudio() {
+  appData.config.audioSilenciado = !appData.config.audioSilenciado;
+  actualizarBotonAudio();
+  guardarDatos();
+
+  if (appData.config.audioSilenciado) {
+    showToast('Sonidos silenciados.', 'info');
+  } else {
+    showToast('Sonidos activados.', 'success');
+    reproducirTono('amarillo');
+  }
+}
+
+// --- Modo Rápido vs Desglose Detallado en el formulario de viaje ---
+let modoFormularioViaje = 'rapido';
+
+const CAMPOS_RAPIDOS = ['rapidoDistanciaKm', 'rapidoTiempoMin', 'rapidoPrecioCOP'];
+const CAMPOS_DETALLADOS = [
+  'distRecogidaKm',
+  'tiempoRecogidaMin',
+  'distEntregaKm',
+  'tiempoEntregaMin',
+  'precioCOP'
+];
+
+function aplicarModoFormularioViaje(modo) {
+  modoFormularioViaje = modo === 'detallado' ? 'detallado' : 'rapido';
+
+  const rapidos = document.getElementById('campos-rapidos');
+  const detallados = document.getElementById('campos-detallados');
+  if (rapidos) rapidos.classList.toggle('hidden', modoFormularioViaje !== 'rapido');
+  if (detallados) detallados.classList.toggle('hidden', modoFormularioViaje !== 'detallado');
+
+  document.querySelectorAll('.form-mode-toggle .mode-btn').forEach(boton => {
+    const activo = boton.dataset.modo === modoFormularioViaje;
+    boton.classList.toggle('active', activo);
+    boton.setAttribute('aria-selected', activo ? 'true' : 'false');
+  });
+
+  CAMPOS_RAPIDOS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.required = modoFormularioViaje === 'rapido';
+  });
+  CAMPOS_DETALLADOS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.required = modoFormularioViaje === 'detallado';
+  });
+
+  // Preserva lo ya escrito al alternar entre modos
+  if (modoFormularioViaje === 'rapido') {
+    sincronizarCamposRapidosDesdeDetallados();
+  } else {
+    sincronizarDetalladosDesdeRapidos();
+  }
+}
+
+function sincronizarCamposRapidosDesdeDetallados() {
+  const leer = id => parseFloat(document.getElementById(id)?.value) || 0;
+  const distancia = leer('distRecogidaKm') + leer('distEntregaKm');
+  const tiempo = leer('tiempoRecogidaMin') + leer('tiempoEntregaMin');
+  const precio = leer('precioCOP');
+
+  const distEl = document.getElementById('rapidoDistanciaKm');
+  const tiempoEl = document.getElementById('rapidoTiempoMin');
+  const precioEl = document.getElementById('rapidoPrecioCOP');
+
+  if (distEl && !distEl.value && distancia > 0) distEl.value = Number(distancia.toFixed(2));
+  if (tiempoEl && !tiempoEl.value && tiempo > 0) tiempoEl.value = Number(tiempo.toFixed(0));
+  if (precioEl && !precioEl.value && precio > 0) precioEl.value = Number(precio.toFixed(0));
+}
+
+function sincronizarDetalladosDesdeRapidos() {
+  const leer = id => parseFloat(document.getElementById(id)?.value) || 0;
+  const distancia = leer('rapidoDistanciaKm');
+  const tiempo = leer('rapidoTiempoMin');
+  const precio = leer('rapidoPrecioCOP');
+
+  const distEntrega = document.getElementById('distEntregaKm');
+  const tiempoEntrega = document.getElementById('tiempoEntregaMin');
+  const precioDetallado = document.getElementById('precioCOP');
+
+  if (distEntrega && !distEntrega.value && distancia > 0) distEntrega.value = Number(distancia.toFixed(2));
+  if (tiempoEntrega && !tiempoEntrega.value && tiempo > 0) tiempoEntrega.value = Number(tiempo.toFixed(0));
+  if (precioDetallado && !precioDetallado.value && precio > 0) precioDetallado.value = Number(precio.toFixed(0));
+}
+
+// --- Calculadora rápida pre-viaje ---
+let campoCalculadoraActivo = 'calcDistanciaKm';
+
+function obtenerValoresCalculadora() {
+  const leer = id => Math.max(0, parseFloat(document.getElementById(id)?.value) || 0);
+  return {
+    distanciaKm: leer('calcDistanciaKm'),
+    tiempoMin: leer('calcTiempoMin'),
+    precioCOP: leer('calcPrecioCOP')
+  };
+}
+
+function evaluarCalculadora({ emitirSonido = false } = {}) {
+  const { distanciaKm, tiempoMin, precioCOP } = obtenerValoresCalculadora();
+
+  const tarjeta = document.getElementById('calc-resultado');
+  const badge = document.getElementById('calc-badge');
+  const veredicto = document.getElementById('calc-veredicto');
+  const metaHoraEl = document.getElementById('calc-meta-hora');
+  const metaKmEl = document.getElementById('calc-meta-km');
+
+  if (metaHoraEl) metaHoraEl.textContent = `Meta: ${formatCOP(appData.config.metaHora)} /h`;
+  if (metaKmEl) metaKmEl.textContent = `Meta: ${formatCOP(appData.config.metaKm)} /km`;
+
+  const valido = distanciaKm > 0 && tiempoMin > 0 && precioCOP > 0;
+
+  if (!valido) {
+    const copHoraEl = document.getElementById('calc-cop-hora');
+    const copKmEl = document.getElementById('calc-cop-km');
+    if (copHoraEl) copHoraEl.textContent = `${formatCOP(0)} /h`;
+    if (copKmEl) copKmEl.textContent = `${formatCOP(0)} /km`;
+    if (tarjeta) tarjeta.classList.remove('calc-verde', 'calc-amarillo', 'calc-rojo');
+    if (badge) {
+      badge.textContent = 'Sin evaluar';
+      badge.className = 'badge badge-neutral';
+    }
+    if (veredicto) {
+      veredicto.textContent = 'Ingresa distancia, tiempo y valor para evaluar la propuesta.';
+    }
+    return null;
+  }
+
+  const metricas = calcularMetricasViaje({
+    id: 'calc',
+    timestamp: new Date().toISOString(),
+    distRecogidaKm: 0,
+    tiempoRecogidaMin: 0,
+    distEntregaKm: distanciaKm,
+    tiempoEntregaMin: tiempoMin,
+    precioCOP,
+    metodoPago: 'Efectivo'
+  });
+
+  const copHoraEl = document.getElementById('calc-cop-hora');
+  const copKmEl = document.getElementById('calc-cop-km');
+  if (copHoraEl) copHoraEl.textContent = `${formatCOP(metricas.copHora)} /h`;
+  if (copKmEl) copKmEl.textContent = `${formatCOP(metricas.copKm)} /km`;
+
+  if (tarjeta) {
+    tarjeta.classList.remove('calc-verde', 'calc-amarillo', 'calc-rojo');
+    tarjeta.classList.add(`calc-${metricas.semaforo}`);
+  }
+
+  if (badge) {
+    badge.textContent = metricas.etiquetaSemaforo;
+    const clase =
+      metricas.semaforo === 'verde'
+        ? 'badge-success'
+        : metricas.semaforo === 'amarillo'
+        ? 'badge-warning'
+        : 'badge-danger';
+    badge.className = `badge ${clase}`;
+  }
+
+  if (veredicto) {
+    const metaHora = Number(appData.config.metaHora) || 30000;
+    const metaKm = Number(appData.config.metaKm) || 2000;
+    const cumpleHora = metricas.copHora >= metaHora;
+    const cumpleKm = metricas.copKm >= metaKm;
+    veredicto.textContent = `${metricas.etiquetaSemaforo}: ${
+      cumpleHora ? 'cumple' : 'no cumple'
+    } la meta por hora y ${cumpleKm ? 'cumple' : 'no cumple'} la meta por km.`;
+  }
+
+  if (emitirSonido) reproducirTono(metricas.semaforo);
+  return metricas;
+}
+
+function limpiarCalculadora() {
+  ['calcDistanciaKm', 'calcTiempoMin', 'calcPrecioCOP'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  evaluarCalculadora();
+}
+
+function aceptarYRegistrarCalculadora() {
+  const { distanciaKm, tiempoMin, precioCOP } = obtenerValoresCalculadora();
+
+  if (distanciaKm <= 0 || tiempoMin <= 0 || precioCOP <= 0) {
+    showToast('Completa distancia, tiempo y valor para registrar la carrera.', 'warning');
+    return;
+  }
+
+  const nuevoViaje = {
+    id: generarId(),
+    timestamp: new Date().toISOString(),
+    distRecogidaKm: 0,
+    tiempoRecogidaMin: 0,
+    distEntregaKm: distanciaKm,
+    tiempoEntregaMin: tiempoMin,
+    precioCOP,
+    metodoPago: 'Efectivo'
+  };
+
+  appData.sesionActual.viajes.push(nuevoViaje);
+  guardarDatos();
+  renderDashboard();
+
+  const metricas = calcularMetricasViaje(nuevoViaje);
+  reproducirTono(metricas.semaforo);
+
+  const tipoToast =
+    metricas.semaforo === 'verde' ? 'success' : metricas.semaforo === 'amarillo' ? 'warning' : 'danger';
+  showToast(
+    `Carrera registrada: ${formatCOP(precioCOP)} · ${metricas.etiquetaSemaforo}.`,
+    tipoToast,
+    4000
+  );
+
+  limpiarCalculadora();
+}
+
+function inicializarCalculadora() {
+  ['calcDistanciaKm', 'calcTiempoMin', 'calcPrecioCOP'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('focus', () => {
+      campoCalculadoraActivo = id;
+    });
+    el.addEventListener('input', () => evaluarCalculadora());
+  });
+
+  const keypad = document.getElementById('calc-keypad');
+  if (keypad) {
+    keypad.addEventListener('click', evento => {
+      const boton = evento.target.closest('button[data-key]');
+      if (!boton) return;
+      const clave = boton.dataset.key;
+      const input = document.getElementById(campoCalculadoraActivo);
+      if (!input) return;
+
+      if (clave === 'borrar') {
+        input.value = input.value.slice(0, -1);
+      } else if (clave === '.') {
+        if (!input.value.includes('.')) input.value += '.';
+      } else {
+        input.value += clave;
+      }
+
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.focus();
+    });
+  }
+
+  const btnAceptar = document.getElementById('btn-calc-aceptar');
+  if (btnAceptar) btnAceptar.addEventListener('click', aceptarYRegistrarCalculadora);
+
+  const btnLimpiar = document.getElementById('btn-calc-limpiar');
+  if (btnLimpiar) btnLimpiar.addEventListener('click', limpiarCalculadora);
+
+  evaluarCalculadora();
+}
+
+// ==========================================
 // 8C. RESPALDO JSON / GOOGLE DRIVE (FASE 3)
 // ==========================================
 
@@ -1796,8 +2250,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   configurarEventListeners();
   configurarRespaldo();
   inicializarNavegacion();
+  inicializarCalculadora();
+  aplicarModoFormularioViaje('rapido');
+  actualizarBotonAudio();
   renderDashboard();
   actualizarEstadoAlmacenamiento();
+
+  // Desbloqueo del AudioContext en el primer gesto real del usuario
+  ['pointerdown', 'keydown'].forEach(evento => {
+    document.addEventListener(evento, desbloquearAudio, { once: true, passive: true });
+  });
+
   if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') {
     lucide.createIcons();
   }

@@ -119,8 +119,8 @@
 - La calculadora permite evaluar propuestas de DiDi en carrera y registrarlas con un solo clic si son aceptadas.
 
 ### Pruebas Browser-QA
-- [ ] AudioContext: Verificar inicialización correcta tras la primera interacción y reproducción de tonos agudo/grave según el semáforo.
-- [ ] Flujo Calculadora -> Viaje: Simular carrera rentable, pulsar "Aceptar y Registrar", verificar inserción en el historial de la jornada activa.
+- [x] AudioContext: Verificar inicialización correcta tras la primera interacción y reproducción de tonos agudo/grave según el semáforo.
+- [x] Flujo Calculadora -> Viaje: Simular carrera rentable, pulsar "Aceptar y Registrar", verificar inserción en el historial de la jornada activa.
 
 ---
 

@@ -36,6 +36,10 @@
       </div>
 
       <div class="header-actions">
+        <button id="btn-toggle-audio" class="btn btn-secondary btn-icon-label" aria-label="Silenciar sonidos" aria-pressed="false" title="Silenciar sonidos">
+          <i data-lucide="volume-2"></i>
+          <span>Audio</span>
+        </button>
         <button id="btn-reiniciar-jornada" class="btn btn-secondary">
           <i data-lucide="rotate-ccw"></i>
           <span>Iniciar / Reiniciar Jornada</span>
@@ -304,10 +308,59 @@
       <div class="section-block">
         <div class="section-header">
           <h2><i data-lucide="calculator"></i> Calculadora Pre-Viaje</h2>
+          <span id="calc-badge" class="badge badge-neutral">Sin evaluar</span>
         </div>
-        <div class="card empty-state">
-          <i data-lucide="timer"></i>
-          <p><strong>Módulo en construcción.</strong> La evaluación instantánea de rentabilidad pre-viaje y el registro con un clic llegarán en la <strong>Fase 4</strong>.</p>
+
+        <div class="calc-grid">
+          <div class="card calc-card">
+            <div class="calc-fields">
+              <div class="form-group">
+                <label for="calcDistanciaKm">Distancia (km)</label>
+                <input type="number" id="calcDistanciaKm" inputmode="decimal" step="any" min="0" placeholder="Ej: 5.7" />
+              </div>
+              <div class="form-group">
+                <label for="calcTiempoMin">Tiempo (min)</label>
+                <input type="number" id="calcTiempoMin" inputmode="decimal" step="any" min="0" placeholder="Ej: 18" />
+              </div>
+              <div class="form-group">
+                <label for="calcPrecioCOP">Valor ofrecido (COP)</label>
+                <input type="number" id="calcPrecioCOP" inputmode="decimal" step="any" min="0" placeholder="Ej: 10500" />
+              </div>
+            </div>
+
+            <div class="calc-keypad" id="calc-keypad" aria-label="Teclado numérico">
+              <button type="button" data-key="1">1</button>
+              <button type="button" data-key="2">2</button>
+              <button type="button" data-key="3">3</button>
+              <button type="button" data-key="4">4</button>
+              <button type="button" data-key="5">5</button>
+              <button type="button" data-key="6">6</button>
+              <button type="button" data-key="7">7</button>
+              <button type="button" data-key="8">8</button>
+              <button type="button" data-key="9">9</button>
+              <button type="button" data-key=".">.</button>
+              <button type="button" data-key="0">0</button>
+              <button type="button" data-key="borrar" aria-label="Borrar dígito">⌫</button>
+            </div>
+          </div>
+
+          <div class="card calc-result-card" id="calc-resultado">
+            <div class="calc-metric">
+              <span>Rentabilidad por hora</span>
+              <strong id="calc-cop-hora">$ 0 /h</strong>
+              <small id="calc-meta-hora">Meta: $ 30.000 /h</small>
+            </div>
+            <div class="calc-metric">
+              <span>Rentabilidad por km</span>
+              <strong id="calc-cop-km">$ 0 /km</strong>
+              <small id="calc-meta-km">Meta: $ 2.000 /km</small>
+            </div>
+            <p id="calc-veredicto" class="calc-veredicto">Ingresa distancia, tiempo y valor para evaluar la propuesta.</p>
+            <div class="calc-actions">
+              <button type="button" id="btn-calc-limpiar" class="btn btn-secondary">Limpiar</button>
+              <button type="button" id="btn-calc-aceptar" class="btn btn-primary">Aceptar y Registrar</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -378,6 +431,35 @@
       <form id="form-viaje" autocomplete="off">
         <input type="hidden" id="viaje-id" />
 
+        <div class="form-mode-toggle" role="tablist" aria-label="Modo de registro de carrera">
+          <button type="button" class="mode-btn active" data-modo="rapido" role="tab" aria-selected="true">
+            <i data-lucide="zap"></i>
+            <span>Modo Rápido</span>
+          </button>
+          <button type="button" class="mode-btn" data-modo="detallado" role="tab" aria-selected="false">
+            <i data-lucide="list"></i>
+            <span>Desglose Detallado</span>
+          </button>
+        </div>
+
+        <!-- MODO RÁPIDO: 3 campos para registrar en menos de 5 segundos -->
+        <div id="campos-rapidos" class="campos-modo">
+          <div class="form-group">
+            <label for="rapidoDistanciaKm">Distancia Total (km)</label>
+            <input type="number" id="rapidoDistanciaKm" inputmode="decimal" step="any" min="0.1" placeholder="Ej: 5.7" />
+          </div>
+          <div class="form-group">
+            <label for="rapidoTiempoMin">Tiempo Total (min)</label>
+            <input type="number" id="rapidoTiempoMin" inputmode="decimal" step="any" min="1" placeholder="Ej: 18" />
+          </div>
+          <div class="form-group">
+            <label for="rapidoPrecioCOP">Valor DiDi (COP)</label>
+            <input type="number" id="rapidoPrecioCOP" inputmode="decimal" step="any" min="100" placeholder="Ej: 10500" />
+          </div>
+        </div>
+
+        <!-- MODO DETALLADO: desglose de recogida y entrega -->
+        <div id="campos-detallados" class="campos-modo hidden">
         <div class="form-row-2">
           <div class="form-group">
             <label for="distRecogidaKm">Dist. Recogida (km)</label>
@@ -446,6 +528,7 @@
             required
           />
         </div>
+        </div><!-- /campos-detallados -->
 
         <div class="form-group">
           <label>Método de Pago</label>
