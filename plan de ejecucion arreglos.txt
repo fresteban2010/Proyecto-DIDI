@@ -29,9 +29,9 @@
 - La aplicación se puede instalar como PWA y carga completamente en modo avión (offline).
 
 ### Pruebas Browser-QA
-- [ ] Inspección de Consola: Sin advertencias de recursos 404 ni errores de sintaxis.
-- [ ] Responsive Check: Probar viewport móvil (390x844) y escritorio (1920x1080).
-- [ ] Application Tab: Validar Service Worker en estado `activated` y Cache Storage poblado.
+- [x] Inspección de Consola: Sin advertencias de recursos 404 ni errores de sintaxis.
+- [x] Responsive Check: Probar viewport móvil (390x844) y escritorio (1920x1080).
+- [x] Application Tab: Validar Service Worker en estado `activated` y Cache Storage poblado.
 
 ---
 
