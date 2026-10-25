@@ -125,24 +125,27 @@ const DidiDB = (() => {
   }
 
   /**
-   * Guarda/actualiza una jornada con sus viajes y tanqueadas.
+   * Guarda/actualiza una jornada con sus viajes, tanqueadas y gastos.
    * Reemplaza los registros hijos de esa jornada (upsert limpio).
    * Los objetos recibidos ya vienen con métricas calculadas desde app.js.
    */
-  async function guardarJornada(jornada, viajes = [], tanqueadas = []) {
+  async function guardarJornada(jornada, viajes = [], tanqueadas = [], gastos = []) {
     const db = await abrir();
 
     // 1) Leer claves existentes de la jornada (lectura previa)
-    const txLectura = db.transaction(['viajes', 'tanqueadas'], 'readonly');
+    const txLectura = db.transaction(['viajes', 'tanqueadas', 'gastosPuntuales'], 'readonly');
     const clavesViajes = await promesaDeSolicitud(
       txLectura.objectStore('viajes').index('jornadaId').getAllKeys(IDBKeyRange.only(jornada.id))
     );
     const clavesTanqueadas = await promesaDeSolicitud(
       txLectura.objectStore('tanqueadas').index('jornadaId').getAllKeys(IDBKeyRange.only(jornada.id))
     );
+    const clavesGastos = await promesaDeSolicitud(
+      txLectura.objectStore('gastosPuntuales').index('jornadaId').getAllKeys(IDBKeyRange.only(jornada.id))
+    );
 
     // 2) Escritura: primero borrar las claves antiguas, luego insertar
-    const transaccion = db.transaction(['jornadas', 'viajes', 'tanqueadas'], 'readwrite');
+    const transaccion = db.transaction(['jornadas', 'viajes', 'tanqueadas', 'gastosPuntuales'], 'readwrite');
     transaccion.objectStore('jornadas').put(jornada);
 
     const storeViajes = transaccion.objectStore('viajes');
@@ -152,6 +155,10 @@ const DidiDB = (() => {
     const storeTanqueadas = transaccion.objectStore('tanqueadas');
     clavesTanqueadas.forEach(clave => storeTanqueadas.delete(clave));
     tanqueadas.forEach(tanqueada => storeTanqueadas.put({ ...tanqueada, jornadaId: jornada.id }));
+
+    const storeGastos = transaccion.objectStore('gastosPuntuales');
+    clavesGastos.forEach(clave => storeGastos.delete(clave));
+    gastos.forEach(gasto => storeGastos.put({ ...gasto, jornadaId: jornada.id }));
 
     await promesaDeTransaccion(transaccion);
   }
@@ -222,8 +229,12 @@ const DidiDB = (() => {
     obtenerTodos,
     contarRegistros,
     obtenerJornadaActiva,
+    obtenerJornadas: () => obtenerTodos('jornadas'),
+    obtenerTodosViajes: () => obtenerTodos('viajes'),
+    obtenerTodosGastos: () => obtenerTodos('gastosPuntuales'),
     obtenerViajesDeJornada: jornadaId => obtenerPorJornada('viajes', jornadaId),
     obtenerTanqueadasDeJornada: jornadaId => obtenerPorJornada('tanqueadas', jornadaId),
+    obtenerGastosDeJornada: jornadaId => obtenerPorJornada('gastosPuntuales', jornadaId),
     obtenerConfig,
     guardarConfig,
     guardarJornada,

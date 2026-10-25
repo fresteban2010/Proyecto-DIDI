@@ -111,6 +111,10 @@
     <section class="section-block">
       <div class="section-header">
         <h2><i data-lucide="trending-up"></i> Resumen de Sesión y Meta</h2>
+        <button id="btn-cerrar-jornada" class="btn btn-danger">
+          <i data-lucide="flag"></i>
+          <span>Finalizar Turno</span>
+        </button>
       </div>
 
       <div class="stats-grid">
@@ -247,12 +251,21 @@
           </div>
         </div>
 
+        <div class="card stat-card">
+          <div class="stat-icon icon-warning"><i data-lucide="wrench"></i></div>
+          <div class="stat-info">
+            <span class="stat-label">Mantenimiento</span>
+            <strong id="gas-gasto-mantenimiento" class="stat-value text-warning">$0</strong>
+            <small id="gas-desglose-mantenimiento" class="stat-meta">Lavados: $0 · Aceite: $0</small>
+          </div>
+        </div>
+
         <div class="card stat-card card-net-profit">
           <div class="stat-icon icon-success"><i data-lucide="banknote"></i></div>
           <div class="stat-info">
-            <span class="stat-label">Ganancia Neta (Bolsillo)</span>
+            <span class="stat-label">Ganancia Neta Real</span>
             <strong id="gas-ganancia-neta" class="stat-value text-success">$0</strong>
-            <small class="stat-meta">Bruto menos gasolina consumida</small>
+            <small id="gas-ganancia-neta-bruta" class="stat-meta">Antes de mantenimiento: $0</small>
           </div>
         </div>
       </div>
@@ -263,6 +276,24 @@
           <span id="total-tanqueadas-sesion">Total pagado en bomba: $0</span>
         </div>
         <div id="lista-tanqueadas" class="fuel-list"></div>
+      </div>
+
+      <div class="card fuel-log-card">
+        <div class="fuel-log-header">
+          <h4>Gastos de Mantenimiento</h4>
+          <div class="fuel-log-actions">
+            <span id="total-gastos-sesion">Total mantenimiento: $0</span>
+            <button type="button" id="btn-abrir-modal-gasto-lavado" class="btn btn-outline btn-sm">
+              <i data-lucide="droplets"></i>
+              <span>Lavado</span>
+            </button>
+            <button type="button" id="btn-abrir-modal-gasto-aceite" class="btn btn-outline btn-sm">
+              <i data-lucide="wrench"></i>
+              <span>Aceite</span>
+            </button>
+          </div>
+        </div>
+        <div id="lista-gastos" class="fuel-list"></div>
       </div>
     </section>
 
@@ -298,6 +329,66 @@
             </thead>
             <tbody id="tabla-historial-body"></tbody>
           </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- BLOQUE 6: JORNADAS GUARDADAS -->
+    <section class="section-block">
+      <div class="section-header">
+        <h2><i data-lucide="calendar-days"></i> Jornadas Registradas</h2>
+      </div>
+      <div id="lista-jornadas" class="jornadas-lista"></div>
+    </section>
+
+    <!-- BLOQUE 7: REPORTES ANALÍTICOS MULTI-JORNADA -->
+    <section class="section-block">
+      <div class="section-header">
+        <h2><i data-lucide="bar-chart-3"></i> Reportes Analíticos</h2>
+        <div class="report-tabs" id="report-tabs" role="tablist" aria-label="Período de reporte">
+          <button type="button" class="report-tab active" data-periodo="dia" role="tab" aria-selected="true">Día</button>
+          <button type="button" class="report-tab" data-periodo="semana" role="tab" aria-selected="false">Semana</button>
+          <button type="button" class="report-tab" data-periodo="mes" role="tab" aria-selected="false">Mes</button>
+        </div>
+      </div>
+
+      <div class="report-metrics">
+        <div class="card report-metric">
+          <span>Bruto del período</span>
+          <strong id="report-bruto">$ 0</strong>
+          <small id="report-bruto-delta" class="report-delta">—</small>
+        </div>
+        <div class="card report-metric">
+          <span>Neto real</span>
+          <strong id="report-neto" class="text-success">$ 0</strong>
+          <small id="report-neto-delta" class="report-delta">—</small>
+        </div>
+        <div class="card report-metric">
+          <span>Rentabilidad media</span>
+          <strong id="report-hora">$ 0/h</strong>
+          <small id="report-hora-delta" class="report-delta">—</small>
+        </div>
+        <div class="card report-metric">
+          <span>Carreras</span>
+          <strong id="report-viajes">0</strong>
+          <small id="report-viajes-delta" class="report-delta">—</small>
+        </div>
+      </div>
+      <p id="report-rango" class="settings-hint"></p>
+    </section>
+
+    <!-- BLOQUE 8: ANALÍTICA DE FRANJAS HORARIAS -->
+    <section class="section-block">
+      <div class="section-header">
+        <h2><i data-lucide="clock"></i> Rendimiento por Franja Horaria</h2>
+      </div>
+      <div class="card chart-card">
+        <div class="chart-header">
+          <h3>COP/h promedio por bloque horario</h3>
+          <p id="franjas-sub" class="chart-sub">Sin carreras en el período seleccionado.</p>
+        </div>
+        <div class="canvas-wrapper bar-wrapper">
+          <canvas id="chart-franjas"></canvas>
         </div>
       </div>
     </section>
@@ -410,8 +501,22 @@
         <div class="card settings-card">
           <h4><i data-lucide="wrench"></i> Costos y Combustible</h4>
           <p class="settings-desc">
-            La configuración avanzada de costos de mantenimiento y control de tanqueadas llegará en la
-            <strong>Fase 5</strong>.
+            Parámetros usados para estimar el desgaste del vehículo y sugerir el valor de los
+            mantenimientos.
+          </p>
+          <div class="settings-grid">
+            <div class="form-group">
+              <label for="configCostoAceite">Costo cambio de aceite (COP)</label>
+              <input type="number" id="configCostoAceite" inputmode="decimal" step="1000" min="0" />
+            </div>
+            <div class="form-group">
+              <label for="configIntervaloAceite">Intervalo de aceite (km)</label>
+              <input type="number" id="configIntervaloAceite" inputmode="decimal" step="500" min="0" />
+            </div>
+          </div>
+          <p class="settings-hint">
+            El costo se usa como valor sugerido al registrar un cambio de aceite; el intervalo se
+            muestra como referencia en el odómetro.
           </p>
         </div>
       </div>
@@ -606,6 +711,43 @@
         <div class="modal-actions">
           <button type="button" id="btn-cancelar-tanqueada" class="btn btn-secondary">Cancelar</button>
           <button type="submit" class="btn btn-primary">Guardar Tanqueada</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: GASTO OCULTO (LAVADO / ACEITE) -->
+  <div id="modal-gasto" class="modal-overlay hidden" aria-hidden="true">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modal-gasto-titulo">Registrar Gasto</h3>
+        <button type="button" id="btn-cerrar-modal-gasto" class="btn-icon" aria-label="Cerrar">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+
+      <form id="form-gasto" autocomplete="off">
+        <input type="hidden" id="gasto-tipo" value="lavado" />
+
+        <div class="form-group">
+          <label for="gastoMontoCOP">Monto (COP)</label>
+          <input type="number" id="gastoMontoCOP" inputmode="decimal" step="any" min="100" placeholder="Ej: 15000" required />
+        </div>
+
+        <div class="form-group" id="grupo-odometro" style="display: none;">
+          <label for="gastoOdometro">Odómetro actual (km)</label>
+          <input type="number" id="gastoOdometro" inputmode="decimal" step="any" min="0" placeholder="Ej: 45210" />
+          <small id="gasto-pista-aceite" class="settings-hint" style="display: none;"></small>
+        </div>
+
+        <div class="form-group">
+          <label for="gastoNota">Nota (Opcional)</label>
+          <input type="text" id="gastoNota" placeholder="Ej: Lavado en bomba / Aceite Mobil" />
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" id="btn-cancelar-gasto" class="btn btn-secondary">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar Gasto</button>
         </div>
       </form>
     </div>

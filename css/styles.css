@@ -1117,3 +1117,142 @@ body {
 @media (min-width: 640px) {
   .calc-grid { grid-template-columns: 1fr 1fr; align-items: start; }
 }
+
+/* === FASE 5: CIERRE DE TURNO, COSTOS OCULTOS Y ANALÍTICA === */
+.shift-closed { color: var(--yellow) !important; font-weight: 600; }
+
+.icon-warning {
+  background-color: var(--yellow-bg);
+  color: var(--yellow);
+}
+.text-warning { color: var(--yellow) !important; }
+
+.fuel-log-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.btn-sm {
+  min-height: 38px;
+  padding: 0 12px;
+  font-size: 0.82rem;
+  gap: 6px;
+}
+.btn-sm svg { width: 15px; height: 15px; }
+
+@media (min-width: 640px) {
+  .fuel-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (min-width: 960px) {
+  .fuel-grid { grid-template-columns: repeat(4, 1fr); }
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+@media (min-width: 640px) {
+  .settings-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* Jornadas guardadas */
+.jornadas-lista { display: flex; flex-direction: column; gap: 12px; }
+.jornada-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-left: 4px solid var(--green);
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.jornada-card.jornada-cerrada { border-left-color: var(--text-muted); }
+.jornada-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.jornada-header strong { display: block; font-size: 0.95rem; }
+.jornada-header small { color: var(--text-muted); font-size: 0.78rem; }
+.jornada-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+.jornada-metrics > div {
+  background-color: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.jornada-metrics span {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.jornada-metrics strong { font-size: 0.95rem; }
+@media (min-width: 640px) {
+  .jornada-metrics { grid-template-columns: repeat(5, 1fr); }
+}
+
+/* Reportes */
+.report-tabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  background-color: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+}
+.report-tab {
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 8px 14px;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.report-tab.active {
+  background-color: var(--primary);
+  color: #fff;
+}
+.report-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 8px;
+}
+@media (min-width: 960px) {
+  .report-metrics { grid-template-columns: repeat(4, 1fr); }
+}
+.report-metric {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.report-metric > span {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.report-metric > strong { font-size: 1.25rem; }
+.report-delta { color: var(--text-muted); font-size: 0.72rem; }
+.report-delta.positivo { color: var(--green); }
+.report-delta.negativo { color: var(--red); }

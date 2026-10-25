@@ -147,9 +147,9 @@
 - El conductor puede identificar en qué horas y días obtiene mayor rentabilidad horaria.
 
 ### Pruebas Browser-QA
-- [ ] Cerrar un turno y verificar que las métricas queden fijadas y accesibles en el historial.
-- [ ] Registrar un lavado de $15.000 y un aceite de $200.000, comprobando el recálculo en la ganancia neta real.
-- [ ] Renderizar el reporte de franjas horarias con viajes en diferentes horas del día y validar visualización en Chart.js.
+- [x] Cerrar un turno y verificar que las métricas queden fijadas y accesibles en el historial.
+- [x] Registrar un lavado de $15.000 y un aceite de $200.000, comprobando el recálculo en la ganancia neta real.
+- [x] Renderizar el reporte de franjas horarias con viajes en diferentes horas del día y validar visualización en Chart.js.
 
 ---
 

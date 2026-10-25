@@ -5,7 +5,16 @@
 - Estructura de carpetas ya migrada a css/, js/, assets/icons (según PLAN_EXECUCION_GIT.md).
 - Tareas F1: (1) Limpieza markup/rutas index.html, (2) Fix CTA/responsive styles.css, (3) sw.js + registro en app.js.
 
-## Progreso (FASE 4)
+## Progreso (FASE 5)
+- Task 1 (costos ocultos): complete — modal único de gasto con tipo (lavado/aceite), monto, odómetro y nota; aceite precargado con `config.costoAceiteCOP` (200.000) y pista de `intervaloAceiteKm` (5.000); lista de gastos con eliminación; tarjeta de Mantenimiento y Ganancia Neta Real (Bruto − gasolina − mantenimiento) en el panel de finanzas; CSV y respaldo ya incluyen `gastosPuntuales`.
+- Task 2 (cierre de turno): complete — botón "Finalizar Turno" con confirmación, `estado: cerrada`, `fechaFin` y `resumen` congelado persistido en IndexedDB; estado visual "Jornada cerrada"; bloqueo de edición/eliminación/altas en jornadas cerradas (inmutabilidad); la próxima carrera ofrece iniciar nueva jornada.
+- Task 3 (analítica multi-jornada): complete — pestaña Historial con lista de jornadas (activas y cerradas, las cerradas usando su resumen congelado), reportes Día/Semana/Mes con Bruto, Neto real, COP/h y carreras + comparativa % vs período anterior, y gráfico Chart.js de franjas horarias (06–09, 09–12, 12–15, 15–18, 18–22, 22–06) con línea de meta y mejor franja.
+- Ruling Fase 5: no se permite cerrar una jornada sin carreras — coste si falla: un turno vacío no queda como registro histórico.
+- Ruling Fase 5: los reportes filtran por timestamp de cada viaje/gasto (no por fecha de jornada), con rangos "hoy", últimos 7 y últimos 30 días — coste si falla: un viaje registrado con hora manual fuera de rango no suma al período.
+- Ruling Fase 5: el CSV de la jornada no se amplió con gastos (el respaldo JSON sí los incluye) — coste si falla: el CSV no muestra mantenimiento.
+- Verificación browser-qa v2: lavado 15.000 + aceite 200.000 → mantenimiento 215.000 y neto real −190.400 con UI idéntica; cierre persiste resumen congelado y resiste nuevas jornadas (−190.400 sigue intacto); edición en cerrada bloqueada con toast; nueva jornada desde CTA con confirmación; 3 jornadas/8 viajes/2 gastos en IndexedDB; franjas Día [48.000, 0, 39.429, 0, 0, 0] y Semana [48.000, 0, 39.429, 0, 54.000, 36.000] con mejor franja 18–22; períodos Día/Semana/Mes con deltas; escritorio 1440x900 sin overflow (4 columnas de reportes, 5 de jornada); consola/red/diálogos: 0.
+- Commit: pendiente → push a github.com/fresteban2010/proyecto-didi (main).
+
 - Task 1 (modo rápido): complete — selector segmentado `Modo Rápido` / `Desglose Detallado` en el modal de viaje; modo rápido con solo 3 campos (distancia total, tiempo total, valor DiDi), `required` conmutado por modo, sincronización de valores al alternar y edición forzada a detallado para conservar el desglose.
 - Task 2 (audio sintético): complete — `AudioContext` creado/desbloqueado al primer gesto (`pointerdown`/`keydown`); osciladores senoidales con envolvente anti-clic: verde 880→1200 Hz dual 120 ms, amarillo 660 Hz 150 ms, rojo 330→220 Hz 200 ms. Interruptor de silencio en cabecera persistido en `config.audioSilenciado` (IndexedDB + espejo). Hook `window.__ultimoTono` para QA.
 - Task 3 (calculadora): complete — pestaña 2 con 3 campos, teclado numérico en pantalla, evaluación instantánea (COP/h, COP/km, semáforo dinámico y veredicto vs metas), botón "Aceptar y Registrar" que crea la carrera, guarda en IndexedDB, emite el tono y muestra toast; "Limpiar" para la siguiente propuesta.
@@ -13,7 +22,8 @@
 - Ruling Fase 4: modo rápido es el predeterminado al crear; editar un viaje abre siempre en detallado — coste si falla: un clic extra al editar.
 - Ruling Fase 4: la calculadora registra con método "Efectivo" por defecto (editable después en el historial) — el plan no pedía selector de método ahí.
 - Verificación browser-qa v2 (perfil persistente + gestos reales): calculadora 5.7 km/18 min/$12.000 → 40.000 COP/h y 2.105 COP/km verdes; aceptar registra y emite tono con `AudioContext.state = running`; modo rápido guarda 2 viajes y crea tono rojo; silencio persiste (`aria-pressed=true`) y suprime tonos; edición abre detallada con 18 min/5.7 km y al pasar a rápido sincroniza; recarga desde IndexedDB conserva `tiempoEntregaMin` y recalcula 40.000 COP/h en tabla; escritorio 1440x900 con 2 columnas, sidebar 88px y sin overflow; consola/red/diálogos: 0.
-- Commit: pendiente → push a github.com/fresteban2010/proyecto-didi (main).
+- Commit: 9fade9e → push a github.com/fresteban2010/proyecto-didi (main).
+- Final review: self-review con evidencia en vivo (audio running, semáforos, registro en DB, edición y persistencia tras recarga; escritorio 1440x900; 0 errores de consola/red/diálogos).
 
 - Task 1 (capa IndexedDB): complete — `js/db.js` con `DidiTrackerDB` v1 y 5 almacenes del plan (`jornadas`, `viajes`, `tanqueadas`, `gastosPuntuales`, `config`), índices `jornadaId` en los 3 hijos, operaciones promisificadas, upsert limpio de jornada (delete+put transaccional en orden), export/import completos y validación de integridad (secciones + schema).
 - Task 2 (fuente de la verdad + migración): complete — `cargarDatos()` async prioriza IndexedDB, con fallback a localStorage si IDB falla; `guardarDatos()` espeja en localStorage y persiste jornada+viajes+tanqueadas+config en IDB; migración transparente e idempotente desde `didi_tracker_data` (fechaInicio, viajes con métricas calculadas, tanqueadas y config preservados).

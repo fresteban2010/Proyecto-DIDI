@@ -23,7 +23,9 @@ const DEFAULT_CONFIG = {
   precioGalonCOP: 16000,
   metaDiaria: 150000,
   tarifaMinimaBonus: 8500,
-  audioSilenciado: false
+  audioSilenciado: false,
+  costoAceiteCOP: 200000,
+  intervaloAceiteKm: 5000
 };
 
 // Estado global de la aplicación
@@ -117,9 +119,10 @@ async function cargarDatos() {
 
     const jornada = await DidiDB.obtenerJornadaActiva();
     if (jornada) {
-      const [viajes, tanqueadas, config] = await Promise.all([
+      const [viajes, tanqueadas, gastos, config] = await Promise.all([
         DidiDB.obtenerViajesDeJornada(jornada.id),
         DidiDB.obtenerTanqueadasDeJornada(jornada.id),
+        DidiDB.obtenerGastosDeJornada(jornada.id),
         DidiDB.obtenerConfig()
       ]);
 
@@ -131,9 +134,12 @@ async function cargarDatos() {
         sesionActual: {
           id: jornada.id,
           fechaInicio: jornada.fechaInicio || new Date().toISOString(),
+          fechaFin: jornada.fechaFin || null,
           estado: jornada.estado || 'activa',
+          resumen: jornada.resumen || null,
           viajes: (Array.isArray(viajes) ? viajes : []).map(normalizarViajeDesdeDB),
-          tanqueadas: Array.isArray(tanqueadas) ? tanqueadas : []
+          tanqueadas: Array.isArray(tanqueadas) ? tanqueadas : [],
+          gastos: Array.isArray(gastos) ? gastos : []
         }
       };
       return;
@@ -184,9 +190,12 @@ function cargarDesdeLocalStorage() {
       sesionActual: {
         id: parsed.sesionActual?.id || generarId(),
         fechaInicio: parsed.sesionActual?.fechaInicio || new Date().toISOString(),
+        fechaFin: parsed.sesionActual?.fechaFin || null,
         estado: parsed.sesionActual?.estado || 'activa',
+        resumen: parsed.sesionActual?.resumen || null,
         viajes: Array.isArray(parsed.sesionActual?.viajes) ? parsed.sesionActual.viajes : [],
-        tanqueadas: Array.isArray(parsed.sesionActual?.tanqueadas) ? parsed.sesionActual.tanqueadas : []
+        tanqueadas: Array.isArray(parsed.sesionActual?.tanqueadas) ? parsed.sesionActual.tanqueadas : [],
+        gastos: Array.isArray(parsed.sesionActual?.gastos) ? parsed.sesionActual.gastos : []
       }
     };
   } catch (error) {
@@ -201,9 +210,12 @@ function inicializarDatosPorDefecto() {
     sesionActual: {
       id: generarId(),
       fechaInicio: new Date().toISOString(),
+      fechaFin: null,
       estado: 'activa',
+      resumen: null,
       viajes: [],
-      tanqueadas: []
+      tanqueadas: [],
+      gastos: []
     }
   };
   guardarDatos();
@@ -256,9 +268,10 @@ async function migrarDesdeLocalStorageSiHaceFalta() {
     }));
 
     await DidiDB.guardarJornada(
-      { id: jornadaId, fechaInicio, fechaFin: null, estado: 'activa' },
+      { id: jornadaId, fechaInicio, fechaFin: null, estado: 'activa', resumen: null },
       viajes,
-      tanqueadas
+      tanqueadas,
+      []
     );
     await DidiDB.guardarConfig(config);
 
@@ -278,7 +291,7 @@ function guardarDatos() {
   } catch (error) {
     console.error('Error al guardar en localStorage:', error);
   }
-  persistirEnIndexedDB();
+  return persistirEnIndexedDB();
 }
 
 /**
@@ -317,14 +330,24 @@ function persistirEnIndexedDB() {
     nota: t.nota
   }));
 
+  const gastos = (appData.sesionActual.gastos || []).map(g => ({
+    id: g.id,
+    timestamp: g.timestamp,
+    tipo: g.tipo,
+    montoCOP: g.montoCOP,
+    odometro: g.odometro ?? null,
+    nota: g.nota
+  }));
+
   const jornada = {
     id: jornadaId,
     fechaInicio: appData.sesionActual.fechaInicio,
-    fechaFin: null,
-    estado: appData.sesionActual.estado || 'activa'
+    fechaFin: appData.sesionActual.fechaFin || null,
+    estado: appData.sesionActual.estado || 'activa',
+    resumen: appData.sesionActual.resumen || null
   };
 
-  return DidiDB.guardarJornada(jornada, viajes, tanqueadas)
+  return DidiDB.guardarJornada(jornada, viajes, tanqueadas, gastos)
     .then(() => DidiDB.guardarConfig(appData.config))
     .then(() => {
       actualizarEstadoAlmacenamiento();
@@ -406,7 +429,8 @@ function calcularMetricasViaje(viaje, config = appData.config) {
 function calcularResumenSesion(
   viajes = appData.sesionActual.viajes,
   config = appData.config,
-  tanqueadas = appData.sesionActual.tanqueadas
+  tanqueadas = appData.sesionActual.tanqueadas,
+  gastos = appData.sesionActual.gastos || []
 ) {
   const viajesCalculados = viajes.map(v => calcularMetricasViaje(v, config));
 
@@ -457,6 +481,16 @@ function calcularResumenSesion(
   const totalTanqueadasCOP = tanqueadas.reduce((acc, t) => acc + (Number(t.montoCOP) || 0), 0);
   const totalGalonesTanqueados = tanqueadas.reduce((acc, t) => acc + (Number(t.galones) || 0), 0);
 
+  // Gastos ocultos: lavados y cambios de aceite
+  const totalLavados = gastos
+    .filter(g => g.tipo === 'lavado')
+    .reduce((acc, g) => acc + (Number(g.montoCOP) || 0), 0);
+  const totalAceite = gastos
+    .filter(g => g.tipo === 'aceite')
+    .reduce((acc, g) => acc + (Number(g.montoCOP) || 0), 0);
+  const totalMantenimiento = totalLavados + totalAceite;
+  const gananciaNetaReal = gananciaNeta - totalMantenimiento;
+
   return {
     viajesCalculados,
     totalCarreras: viajesCalculados.length,
@@ -478,7 +512,12 @@ function calcularResumenSesion(
     gastoGasolinaEstimado,
     gananciaNeta,
     totalTanqueadasCOP,
-    totalGalonesTanqueados
+    totalGalonesTanqueados,
+    totalLavados,
+    totalAceite,
+    totalMantenimiento,
+    gananciaNetaReal,
+    gastos
   };
 }
 
@@ -508,7 +547,8 @@ function renderDashboard() {
   const resumen = calcularResumenSesion(
     appData.sesionActual.viajes,
     appData.config,
-    appData.sesionActual.tanqueadas
+    appData.sesionActual.tanqueadas,
+    appData.sesionActual.gastos
   );
 
   renderEstadoJornada(resumen);
@@ -517,6 +557,7 @@ function renderDashboard() {
   renderMetaDiaria(resumen);
   renderGraficos(resumen);
   renderSeccionGasolina(resumen);
+  renderGastosMantenimiento(resumen);
   renderTablaHistorial(resumen);
 
   if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') {
@@ -530,7 +571,17 @@ function renderEstadoJornada(resumen) {
 
   const fechaTexto = formatFechaCompleta(appData.sesionActual.fechaInicio);
   const nCarreras = resumen.totalCarreras;
-  elEstado.textContent = `Jornada activa desde ${fechaTexto} • ${nCarreras} ${nCarreras === 1 ? 'carrera' : 'carreras'}`;
+
+  if (appData.sesionActual.estado === 'cerrada') {
+    const fechaFinTexto = appData.sesionActual.fechaFin
+      ? formatFechaCompleta(appData.sesionActual.fechaFin)
+      : '—';
+    elEstado.textContent = `Jornada cerrada el ${fechaFinTexto} • ${nCarreras} ${nCarreras === 1 ? 'carrera' : 'carreras'}`;
+    elEstado.classList.add('shift-closed');
+  } else {
+    elEstado.textContent = `Jornada activa desde ${fechaTexto} • ${nCarreras} ${nCarreras === 1 ? 'carrera' : 'carreras'}`;
+    elEstado.classList.remove('shift-closed');
+  }
 }
 
 function renderUltimoViaje(resumen) {
@@ -706,7 +757,13 @@ function renderMetaDiaria(resumen) {
 function renderSeccionGasolina(resumen) {
   setText('gas-km-total', `${formatNum(resumen.distanciaTotalKm, 1)} km`);
   setText('gas-gasto-estimado', formatCOP(resumen.gastoGasolinaEstimado));
-  setText('gas-ganancia-neta', formatCOP(resumen.gananciaNeta));
+  setText('gas-gasto-mantenimiento', formatCOP(resumen.totalMantenimiento));
+  setText(
+    'gas-desglose-mantenimiento',
+    `Lavados: ${formatCOP(resumen.totalLavados)} · Aceite: ${formatCOP(resumen.totalAceite)}`
+  );
+  setText('gas-ganancia-neta', formatCOP(resumen.gananciaNetaReal));
+  setText('gas-ganancia-neta-bruta', `Antes de mantenimiento: ${formatCOP(resumen.gananciaNeta)}`);
   setText(
     'total-tanqueadas-sesion',
     `Total pagado en bomba: ${formatCOP(resumen.totalTanqueadasCOP)} (${formatNum(resumen.totalGalonesTanqueados, 2)} gal)`
@@ -737,6 +794,40 @@ function renderSeccionGasolina(resumen) {
             ${nota}
           </div>
           <button type="button" class="btn-table-action delete btn-eliminar-tanqueada" data-id="${t.id}" title="Eliminar tanqueada">
+            <i data-lucide="trash-2"></i>
+          </button>
+        </div>
+      `;
+    })
+    .join('');
+}
+
+function renderGastosMantenimiento(resumen) {
+  const listaEl = document.getElementById('lista-gastos');
+  setText('total-gastos-sesion', `Total mantenimiento: ${formatCOP(resumen.totalMantenimiento)}`);
+  if (!listaEl) return;
+
+  const gastos = (appData.sesionActual.gastos || []).slice().reverse();
+  if (gastos.length === 0) {
+    listaEl.innerHTML = `<div class="empty-state" style="padding: 12px;">No hay lavados ni cambios de aceite en esta jornada.</div>`;
+    return;
+  }
+
+  listaEl.innerHTML = gastos
+    .map(g => {
+      const esAceite = g.tipo === 'aceite';
+      const etiqueta = esAceite ? 'Cambio de aceite' : 'Lavado';
+      const hora = formatFechaHora(g.timestamp);
+      const nota = g.nota ? ` — <em>${escaparHTML(g.nota)}</em>` : '';
+      const odometro = esAceite && g.odometro ? ` · ${formatNum(g.odometro, 0)} km` : '';
+      return `
+        <div class="fuel-item" data-id="${g.id}">
+          <div>
+            <strong>${etiqueta}: ${formatCOP(g.montoCOP)}</strong>
+            <small style="opacity:0.7; margin-left:0.4rem;">${hora}${odometro}</small>
+            ${nota}
+          </div>
+          <button type="button" class="btn-table-action delete btn-eliminar-gasto" data-id="${g.id}" title="Eliminar gasto">
             <i data-lucide="trash-2"></i>
           </button>
         </div>
@@ -1230,6 +1321,7 @@ function guardarViajeDesdeFormulario(evento) {
 }
 
 function abrirModalTanqueada() {
+  if (!jornadaActivaParaEdicion()) return;
   const modal = document.getElementById('modal-tanqueada');
   const form = document.getElementById('form-tanqueada');
   if (!modal || !form) return;
@@ -1250,6 +1342,11 @@ function cerrarModalTanqueada() {
 
 function guardarTanqueadaDesdeFormulario(evento) {
   evento.preventDefault();
+
+  if (!jornadaActivaParaEdicion()) {
+    cerrarModalTanqueada();
+    return;
+  }
 
   const montoCOP = parseFloat(document.getElementById('tanqueadaMontoCOP')?.value) || 0;
   let galones = parseFloat(document.getElementById('tanqueadaGalones')?.value) || 0;
@@ -1286,12 +1383,23 @@ function guardarTanqueadaDesdeFormulario(evento) {
 // ==========================================
 
 function editarViaje(id) {
+  if (!jornadaActivaParaEdicion()) return;
   const viaje = appData.sesionActual.viajes.find(v => v.id === id);
   if (!viaje) return;
   abrirModalViaje(viaje);
 }
 
+/**
+ * Bloquea la edición de datos cuando la jornada está cerrada (inmutable).
+ */
+function jornadaActivaParaEdicion() {
+  if (appData.sesionActual.estado === 'activa') return true;
+  showToast('La jornada está cerrada y es inmutable. Inicia una nueva jornada para editar.', 'warning', 4000);
+  return false;
+}
+
 function eliminarViaje(id) {
+  if (!jornadaActivaParaEdicion()) return;
   const viaje = appData.sesionActual.viajes.find(v => v.id === id);
   if (!viaje) return;
 
@@ -1308,6 +1416,7 @@ function eliminarViaje(id) {
 }
 
 function eliminarTanqueada(id) {
+  if (!jornadaActivaParaEdicion()) return;
   confirmDialog('¿Deseas eliminar este registro de tanqueada?', 'Eliminar tanqueada').then(confirmar => {
     if (!confirmar) return;
     appData.sesionActual.tanqueadas = appData.sesionActual.tanqueadas.filter(t => t.id !== id);
@@ -1317,28 +1426,205 @@ function eliminarTanqueada(id) {
   });
 }
 
+function eliminarGasto(id) {
+  if (!jornadaActivaParaEdicion()) return;
+  confirmDialog('¿Deseas eliminar este gasto de mantenimiento?', 'Eliminar gasto').then(confirmar => {
+    if (!confirmar) return;
+    appData.sesionActual.gastos = (appData.sesionActual.gastos || []).filter(g => g.id !== id);
+    guardarDatos();
+    renderDashboard();
+    showToast('Gasto eliminado.', 'info');
+  });
+}
+
+// --- Registro de gastos ocultos: lavado y cambio de aceite ---
+function abrirModalGasto(tipo = 'lavado') {
+  if (!jornadaActivaParaEdicion()) return;
+  const modal = document.getElementById('modal-gasto');
+  const form = document.getElementById('form-gasto');
+  if (!modal || !form) return;
+
+  form.reset();
+  const esAceite = tipo === 'aceite';
+  const inputTipo = document.getElementById('gasto-tipo');
+  if (inputTipo) inputTipo.value = esAceite ? 'aceite' : 'lavado';
+
+  setText('modal-gasto-titulo', esAceite ? 'Cambio de Aceite' : 'Lavado de Vehículo');
+
+  const inputMonto = document.getElementById('gastoMontoCOP');
+  if (inputMonto) {
+    inputMonto.value = esAceite ? Number(appData.config.costoAceiteCOP) || 200000 : '';
+  }
+
+  const grupoOdometro = document.getElementById('grupo-odometro');
+  if (grupoOdometro) grupoOdometro.style.display = esAceite ? '' : 'none';
+
+  const pistaIntervalo = document.getElementById('gasto-pista-aceite');
+  if (pistaIntervalo) {
+    pistaIntervalo.style.display = esAceite ? '' : 'none';
+    if (esAceite) {
+      pistaIntervalo.textContent = `Intervalo configurado: cada ${formatNum(appData.config.intervaloAceiteKm, 0)} km.`;
+    }
+  }
+
+  mostrarModal(modal);
+  if (inputMonto) setTimeout(() => inputMonto.focus(), 50);
+}
+
+function cerrarModalGasto() {
+  const modal = document.getElementById('modal-gasto');
+  const form = document.getElementById('form-gasto');
+  if (form) form.reset();
+  ocultarModal(modal);
+}
+
+function guardarGastoDesdeFormulario(evento) {
+  evento.preventDefault();
+
+  if (!jornadaActivaParaEdicion()) {
+    cerrarModalGasto();
+    return;
+  }
+
+  const tipo = document.getElementById('gasto-tipo')?.value === 'aceite' ? 'aceite' : 'lavado';
+  const montoCOP = parseFloat(document.getElementById('gastoMontoCOP')?.value) || 0;
+  const odometro = parseFloat(document.getElementById('gastoOdometro')?.value) || null;
+  const nota = document.getElementById('gastoNota')?.value?.trim() || '';
+
+  if (montoCOP <= 0) {
+    showToast('Ingresa un monto válido en COP para el gasto.', 'warning');
+    return;
+  }
+
+  appData.sesionActual.gastos = appData.sesionActual.gastos || [];
+  appData.sesionActual.gastos.push({
+    id: generarId(),
+    timestamp: new Date().toISOString(),
+    tipo,
+    montoCOP,
+    odometro,
+    nota
+  });
+
+  guardarDatos();
+  cerrarModalGasto();
+  renderDashboard();
+  showToast(
+    tipo === 'aceite' ? 'Cambio de aceite registrado.' : 'Lavado registrado.',
+    'success'
+  );
+}
+
+// --- Cierre de turno / jornada ---
+function construirResumenCongelado(resumen, fechaFin) {
+  return {
+    totalCarreras: resumen.totalCarreras,
+    totalGanado: resumen.totalGanado,
+    tiempoTotalMin: resumen.tiempoTotalMin,
+    distanciaTotalKm: resumen.distanciaTotalKm,
+    promHora: resumen.promHora,
+    promKm: resumen.promKm,
+    gastoGasolinaEstimado: resumen.gastoGasolinaEstimado,
+    totalLavados: resumen.totalLavados,
+    totalAceite: resumen.totalAceite,
+    totalMantenimiento: resumen.totalMantenimiento,
+    gananciaNeta: resumen.gananciaNeta,
+    gananciaNetaReal: resumen.gananciaNetaReal,
+    totalTanqueadasCOP: resumen.totalTanqueadasCOP,
+    fechaInicio: appData.sesionActual.fechaInicio,
+    fechaFin
+  };
+}
+
+function cerrarJornada() {
+  if (appData.sesionActual.estado !== 'activa') {
+    showToast('La jornada ya está cerrada.', 'info');
+    return;
+  }
+  if (appData.sesionActual.viajes.length === 0) {
+    showToast('Registra al menos una carrera antes de cerrar el turno.', 'warning');
+    return;
+  }
+
+  const resumen = calcularResumenSesion(
+    appData.sesionActual.viajes,
+    appData.config,
+    appData.sesionActual.tanqueadas,
+    appData.sesionActual.gastos
+  );
+
+  confirmDialog(
+    `Vas a cerrar la jornada con ${resumen.totalCarreras} carreras y ${formatCOP(
+      resumen.totalGanado
+    )} brutos. Las métricas quedarán congeladas en el historial.`,
+    'Finalizar Turno'
+  ).then(confirmar => {
+    if (!confirmar) return;
+
+    const fechaFin = new Date().toISOString();
+    appData.sesionActual.estado = 'cerrada';
+    appData.sesionActual.fechaFin = fechaFin;
+    appData.sesionActual.resumen = construirResumenCongelado(resumen, fechaFin);
+
+    const persistencia = guardarDatos();
+    renderDashboard();
+    showToast('Jornada cerrada. Métricas congeladas en el historial.', 'success', 4500);
+    Promise.resolve(persistencia).then(() => refrescarAnalitica());
+  });
+}
+
 function reiniciarJornada() {
   const tieneDatos =
-    appData.sesionActual.viajes.length > 0 || appData.sesionActual.tanqueadas.length > 0;
+    appData.sesionActual.viajes.length > 0 ||
+    appData.sesionActual.tanqueadas.length > 0 ||
+    (appData.sesionActual.gastos || []).length > 0;
 
   const mensaje = tieneDatos
-    ? '¿Estás seguro de iniciar una nueva jornada? Se borrarán los viajes y tanqueadas de la sesión actual.'
+    ? '¿Estás seguro de iniciar una nueva jornada? Se borrarán los viajes, tanqueadas y gastos de la sesión actual.'
     : '¿Deseas reiniciar el contador de inicio de la jornada actual?';
 
   confirmDialog(mensaje, 'Iniciar / Reiniciar Jornada').then(confirmar => {
     if (!confirmar) return;
-
-    appData.sesionActual = {
-      id: generarId(),
-      fechaInicio: new Date().toISOString(),
-      estado: 'activa',
-      viajes: [],
-      tanqueadas: []
-    };
-
-    guardarDatos();
-    renderDashboard();
+    crearNuevaJornada();
     showToast('Nueva jornada iniciada.', 'success');
+  });
+}
+
+/**
+ * Crea una jornada limpia y la persiste. Si la jornada anterior estaba
+ * cerrada, esta se conserva inmutable en IndexedDB.
+ */
+function crearNuevaJornada() {
+  appData.sesionActual = {
+    id: generarId(),
+    fechaInicio: new Date().toISOString(),
+    fechaFin: null,
+    estado: 'activa',
+    resumen: null,
+    viajes: [],
+    tanqueadas: [],
+    gastos: []
+  };
+  guardarDatos();
+  renderDashboard();
+  refrescarAnalitica();
+}
+
+/**
+ * Garantiza que exista una jornada activa antes de registrar una carrera.
+ * Si la jornada está cerrada, solicita confirmación para iniciar una nueva.
+ */
+function asegurarJornadaActiva() {
+  if (appData.sesionActual.estado === 'activa') return Promise.resolve(true);
+
+  return confirmDialog(
+    'La jornada actual está cerrada. ¿Iniciar una nueva jornada para registrar esta carrera?',
+    'Jornada cerrada'
+  ).then(confirmar => {
+    if (!confirmar) return false;
+    crearNuevaJornada();
+    showToast('Nueva jornada iniciada.', 'success');
+    return true;
   });
 }
 
@@ -1346,7 +1632,8 @@ function exportarCSV() {
   const resumen = calcularResumenSesion(
     appData.sesionActual.viajes,
     appData.config,
-    appData.sesionActual.tanqueadas
+    appData.sesionActual.tanqueadas,
+    appData.sesionActual.gastos
   );
 
   if (resumen.viajesCalculados.length === 0) {
@@ -1475,10 +1762,50 @@ function configurarEventListeners() {
   });
 
   const btnAbrirViaje = document.getElementById('btn-abrir-modal-viaje');
-  if (btnAbrirViaje) btnAbrirViaje.addEventListener('click', () => abrirModalViaje(null));
+  if (btnAbrirViaje) {
+    btnAbrirViaje.addEventListener('click', () => {
+      asegurarJornadaActiva().then(activa => {
+        if (activa) abrirModalViaje(null);
+      });
+    });
+  }
 
   const btnAbrirTanqueada = document.getElementById('btn-abrir-modal-tanqueada');
   if (btnAbrirTanqueada) btnAbrirTanqueada.addEventListener('click', abrirModalTanqueada);
+
+  // Costos ocultos: lavado y aceite
+  const btnGastoLavado = document.getElementById('btn-abrir-modal-gasto-lavado');
+  if (btnGastoLavado) btnGastoLavado.addEventListener('click', () => abrirModalGasto('lavado'));
+
+  const btnGastoAceite = document.getElementById('btn-abrir-modal-gasto-aceite');
+  if (btnGastoAceite) btnGastoAceite.addEventListener('click', () => abrirModalGasto('aceite'));
+
+  const formGasto = document.getElementById('form-gasto');
+  if (formGasto) formGasto.addEventListener('submit', guardarGastoDesdeFormulario);
+
+  const btnCerrarGasto = document.getElementById('btn-cerrar-modal-gasto');
+  if (btnCerrarGasto) btnCerrarGasto.addEventListener('click', cerrarModalGasto);
+
+  const btnCancelarGasto = document.getElementById('btn-cancelar-gasto');
+  if (btnCancelarGasto) btnCancelarGasto.addEventListener('click', cerrarModalGasto);
+
+  const modalGasto = document.getElementById('modal-gasto');
+  if (modalGasto) {
+    modalGasto.addEventListener('click', e => {
+      if (e.target === modalGasto) cerrarModalGasto();
+    });
+  }
+
+  const btnCerrarJornada = document.getElementById('btn-cerrar-jornada');
+  if (btnCerrarJornada) btnCerrarJornada.addEventListener('click', cerrarJornada);
+
+  const listaGastos = document.getElementById('lista-gastos');
+  if (listaGastos) {
+    listaGastos.addEventListener('click', e => {
+      const btnEliminar = e.target.closest('.btn-eliminar-gasto');
+      if (btnEliminar) eliminarGasto(btnEliminar.dataset.id);
+    });
+  }
 
   const btnExportarCSV = document.getElementById('btn-exportar-csv');
   if (btnExportarCSV) btnExportarCSV.addEventListener('click', exportarCSV);
@@ -1493,7 +1820,8 @@ function configurarEventListeners() {
       const resumen = calcularResumenSesion(
         appData.sesionActual.viajes,
         appData.config,
-        appData.sesionActual.tanqueadas
+        appData.sesionActual.tanqueadas,
+        appData.sesionActual.gastos
       );
       renderMetaDiaria(resumen);
     });
@@ -1578,6 +1906,7 @@ function configurarEventListeners() {
     if (e.key === 'Escape') {
       cerrarModalViaje();
       cerrarModalTanqueada();
+      cerrarModalGasto();
     }
   });
 }
@@ -1681,8 +2010,385 @@ function inicializarNavegacion() {
       vistaEl.classList.toggle('hidden', vistaEl.id !== vista);
     });
 
+    // Al abrir Historial, refrescar reportes y jornadas desde IndexedDB
+    if (vista === 'view-historial') {
+      refrescarAnalitica();
+    }
+
     window.scrollTo(0, 0);
   });
+}
+
+// ==========================================
+// 8E. ANALÍTICA MULTI-JORNADA Y FRANJAS HORARIAS (FASE 5)
+// ==========================================
+
+let periodoReporte = 'dia';
+let cacheAnalitica = { jornadas: [], viajes: [], gastos: [] };
+let chartFranjasInstance = null;
+
+const FRANJAS_HORARIAS = [
+  { etiqueta: '06–09', desde: 6, hasta: 9 },
+  { etiqueta: '09–12', desde: 9, hasta: 12 },
+  { etiqueta: '12–15', desde: 12, hasta: 15 },
+  { etiqueta: '15–18', desde: 15, hasta: 18 },
+  { etiqueta: '18–22', desde: 18, hasta: 22 },
+  { etiqueta: '22–06', desde: 22, hasta: 30 }
+];
+
+function inicioDelDia(fecha) {
+  const copia = new Date(fecha);
+  copia.setHours(0, 0, 0, 0);
+  return copia;
+}
+
+function rangoPeriodo(periodo) {
+  const ahora = new Date();
+  const inicioHoy = inicioDelDia(ahora);
+
+  if (periodo === 'semana') {
+    const inicio = new Date(inicioHoy.getTime() - 6 * 86400000);
+    return {
+      inicio,
+      fin: ahora,
+      inicioPrev: new Date(inicio.getTime() - 7 * 86400000),
+      finPrev: inicio
+    };
+  }
+
+  if (periodo === 'mes') {
+    const inicio = new Date(inicioHoy.getTime() - 29 * 86400000);
+    return {
+      inicio,
+      fin: ahora,
+      inicioPrev: new Date(inicio.getTime() - 30 * 86400000),
+      finPrev: inicio
+    };
+  }
+
+  return {
+    inicio: inicioHoy,
+    fin: ahora,
+    inicioPrev: new Date(inicioHoy.getTime() - 86400000),
+    finPrev: inicioHoy
+  };
+}
+
+function estaEnRango(timestamp, inicio, fin) {
+  const fecha = new Date(timestamp);
+  if (isNaN(fecha.getTime())) return false;
+  return fecha >= inicio && fecha <= fin;
+}
+
+function indiceFranjaHora(hora) {
+  if (hora >= 22 || hora < 6) return 5;
+  return FRANJAS_HORARIAS.findIndex(franja => hora >= franja.desde && hora < franja.hasta);
+}
+
+function formatearFechaCorta(fecha) {
+  return new Date(fecha).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' });
+}
+
+function agregarMetricas(viajes, gastos) {
+  const calculados = viajes.map(v => calcularMetricasViaje(normalizarViajeDesdeDB(v)));
+  const totalGanado = calculados.reduce((acc, v) => acc + v.precioCOP, 0);
+  const tiempoTotalMin = calculados.reduce((acc, v) => acc + v.tTotal, 0);
+  const distanciaTotalKm = calculados.reduce((acc, v) => acc + v.dTotal, 0);
+  const mantenimiento = gastos.reduce((acc, g) => acc + (Number(g.montoCOP) || 0), 0);
+  const precioGalon = Number(appData.config.precioGalonCOP) || 16000;
+  const rendimiento = Number(appData.config.rendimientoGalonKm) || 40;
+  const gastoGasolina = distanciaTotalKm * (precioGalon / rendimiento);
+
+  return {
+    totalCarreras: calculados.length,
+    totalGanado,
+    tiempoTotalMin,
+    distanciaTotalKm,
+    promHora: tiempoTotalMin > 0 ? totalGanado / (tiempoTotalMin / 60) : 0,
+    gastoGasolina,
+    mantenimiento,
+    netoReal: totalGanado - gastoGasolina - mantenimiento
+  };
+}
+
+function formatearDelta(actual, anterior) {
+  if (!anterior) {
+    return { texto: actual > 0 ? 'nuevo en el período' : '—', clase: actual > 0 ? 'positivo' : '' };
+  }
+  const porcentaje = ((actual - anterior) / anterior) * 100;
+  const signo = porcentaje >= 0 ? '+' : '';
+  return {
+    texto: `${signo}${formatNum(porcentaje, 1)}% vs período anterior`,
+    clase: porcentaje >= 0 ? 'positivo' : 'negativo'
+  };
+}
+
+function aplicarDelta(id, actual, anterior) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const delta = formatearDelta(actual, anterior);
+  el.textContent = delta.texto;
+  el.className = `report-delta ${delta.clase}`;
+}
+
+function renderReportes() {
+  const { inicio, fin, inicioPrev, finPrev } = rangoPeriodo(periodoReporte);
+
+  const viajesActual = cacheAnalitica.viajes.filter(v => estaEnRango(v.timestamp, inicio, fin));
+  const gastosActual = cacheAnalitica.gastos.filter(g => estaEnRango(g.timestamp, inicio, fin));
+  const viajesPrevio = cacheAnalitica.viajes.filter(v => estaEnRango(v.timestamp, inicioPrev, finPrev));
+  const gastosPrevio = cacheAnalitica.gastos.filter(g => estaEnRango(g.timestamp, inicioPrev, finPrev));
+
+  const actual = agregarMetricas(viajesActual, gastosActual);
+  const previo = agregarMetricas(viajesPrevio, gastosPrevio);
+
+  setText('report-bruto', formatCOP(actual.totalGanado));
+  setText('report-neto', formatCOP(actual.netoReal));
+  setText('report-hora', `${formatCOP(actual.promHora)}/h`);
+  setText('report-viajes', String(actual.totalCarreras));
+
+  aplicarDelta('report-bruto-delta', actual.totalGanado, previo.totalGanado);
+  aplicarDelta('report-neto-delta', actual.netoReal, previo.netoReal);
+  aplicarDelta('report-hora-delta', actual.promHora, previo.promHora);
+  aplicarDelta('report-viajes-delta', actual.totalCarreras, previo.totalCarreras);
+
+  const etiquetas = {
+    dia: 'hoy',
+    semana: 'últimos 7 días',
+    mes: 'últimos 30 días'
+  };
+  setText(
+    'report-rango',
+    `Período: ${etiquetas[periodoReporte] || periodoReporte} · ${formatearFechaCorta(inicio)} – ${formatearFechaCorta(fin)}`
+  );
+
+  renderGraficoFranjas(viajesActual);
+}
+
+function renderGraficoFranjas(viajes) {
+  const canvas = document.getElementById('chart-franjas');
+  if (!canvas || typeof Chart === 'undefined') return;
+
+  const acumulados = FRANJAS_HORARIAS.map(() => ({ precio: 0, tiempo: 0, carreras: 0 }));
+
+  viajes.forEach(viaje => {
+    const metricas = calcularMetricasViaje(normalizarViajeDesdeDB(viaje));
+    const fecha = new Date(metricas.timestamp);
+    if (isNaN(fecha.getTime())) return;
+    const indice = indiceFranjaHora(fecha.getHours());
+    if (indice < 0) return;
+    acumulados[indice].precio += metricas.precioCOP;
+    acumulados[indice].tiempo += metricas.tTotal;
+    acumulados[indice].carreras += 1;
+  });
+
+  const labels = FRANJAS_HORARIAS.map(franja => franja.etiqueta);
+  const valores = acumulados.map(a => (a.tiempo > 0 ? a.precio / (a.tiempo / 60) : 0));
+  const metaHora = Number(appData.config.metaHora) || 30000;
+  const colores = valores.map(valor =>
+    valor >= metaHora ? '#10b981' : valor >= metaHora * 0.8 ? '#f59e0b' : '#ef4444'
+  );
+
+  const subtitulo = document.getElementById('franjas-sub');
+  if (subtitulo) {
+    if (viajes.length === 0) {
+      subtitulo.textContent = 'Sin carreras en el período seleccionado.';
+    } else {
+      let mejorIndice = 0;
+      valores.forEach((valor, indice) => {
+        if (valor > valores[mejorIndice]) mejorIndice = indice;
+      });
+      subtitulo.textContent = `Mejor franja: ${labels[mejorIndice]} con ${formatCOP(
+        valores[mejorIndice]
+      )}/h · ${viajes.length} carreras analizadas`;
+    }
+  }
+
+  if (chartFranjasInstance) {
+    chartFranjasInstance.data.datasets[0].data = valores;
+    chartFranjasInstance.data.datasets[0].backgroundColor = colores;
+    chartFranjasInstance.data.datasets[1].data = labels.map(() => metaHora);
+    chartFranjasInstance.options.scales.y.suggestedMax = Math.max(metaHora * 1.3, ...valores, 35000);
+    chartFranjasInstance.update();
+    return;
+  }
+
+  chartFranjasInstance = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          type: 'bar',
+          label: 'COP / hora por franja',
+          data: valores,
+          backgroundColor: colores,
+          borderRadius: 6,
+          maxBarThickness: 44,
+          order: 2
+        },
+        {
+          type: 'line',
+          label: `Meta (${formatCOP(metaHora)}/h)`,
+          data: labels.map(() => metaHora),
+          borderColor: '#ff6b00',
+          borderWidth: 2,
+          borderDash: [6, 4],
+          pointRadius: 0,
+          fill: false,
+          order: 1
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: {
+          ticks: { color: '#94a3b8' },
+          grid: { display: false }
+        },
+        y: {
+          beginAtZero: true,
+          suggestedMax: Math.max(metaHora * 1.3, ...valores, 35000),
+          ticks: {
+            color: '#94a3b8',
+            callback: value => '$' + (value / 1000).toFixed(0) + 'k'
+          },
+          grid: { color: 'rgba(148, 163, 184, 0.12)' }
+        }
+      },
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { color: '#94a3b8', font: { size: 12 } }
+        },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: ${formatCOP(ctx.raw)}/h`
+          }
+        }
+      }
+    }
+  });
+}
+
+function renderJornadasListado() {
+  const contenedor = document.getElementById('lista-jornadas');
+  if (!contenedor) return;
+
+  const jornadas = cacheAnalitica.jornadas
+    .slice()
+    .sort((a, b) => String(b.fechaInicio || '').localeCompare(String(a.fechaInicio || '')));
+
+  if (jornadas.length === 0) {
+    contenedor.innerHTML = `<div class="empty-state" style="padding: 14px;">Aún no hay jornadas guardadas.</div>`;
+    return;
+  }
+
+  contenedor.innerHTML = jornadas
+    .map(jornada => {
+      const viajes = cacheAnalitica.viajes
+        .filter(v => v.jornadaId === jornada.id)
+        .map(normalizarViajeDesdeDB);
+      const gastos = cacheAnalitica.gastos.filter(g => g.jornadaId === jornada.id);
+      const cerrada = jornada.estado === 'cerrada';
+
+      // Las jornadas cerradas usan su resumen congelado (inmutable)
+      const resumen =
+        cerrada && jornada.resumen && typeof jornada.resumen.gananciaNetaReal === 'number'
+          ? jornada.resumen
+          : calcularResumenSesion(viajes, appData.config, [], gastos);
+
+      const fin = jornada.fechaFin ? new Date(jornada.fechaFin) : new Date();
+      const duracionMin = Math.max(0, (fin - new Date(jornada.fechaInicio)) / 60000);
+      const nCarreras = resumen.totalCarreras ?? viajes.length;
+
+      return `
+        <article class="jornada-card ${cerrada ? 'jornada-cerrada' : 'jornada-activa'}">
+          <header class="jornada-header">
+            <div>
+              <strong>${formatFechaCompleta(jornada.fechaInicio)}</strong>
+              <small>${formatDuracion(duracionMin)} · ${nCarreras} ${nCarreras === 1 ? 'carrera' : 'carreras'}</small>
+            </div>
+            <span class="badge ${cerrada ? 'badge-neutral' : 'badge-success'}">
+              ${cerrada ? 'Cerrada' : 'Activa'}
+            </span>
+          </header>
+          <div class="jornada-metrics">
+            <div><span>Bruto</span><strong>${formatCOP(resumen.totalGanado)}</strong></div>
+            <div><span>Gasolina</span><strong>${formatCOP(resumen.gastoGasolinaEstimado)}</strong></div>
+            <div><span>Mantenimiento</span><strong>${formatCOP(resumen.totalMantenimiento)}</strong></div>
+            <div><span>Neto real</span><strong class="text-success">${formatCOP(resumen.gananciaNetaReal)}</strong></div>
+            <div><span>COP/h</span><strong>${formatCOP(resumen.promHora)}</strong></div>
+          </div>
+        </article>
+      `;
+    })
+    .join('');
+}
+
+async function refrescarAnalitica() {
+  if (typeof DidiDB === 'undefined') return;
+  try {
+    const [jornadas, viajes, gastos] = await Promise.all([
+      DidiDB.obtenerJornadas(),
+      DidiDB.obtenerTodosViajes(),
+      DidiDB.obtenerTodosGastos()
+    ]);
+    cacheAnalitica = {
+      jornadas: jornadas || [],
+      viajes: viajes || [],
+      gastos: gastos || []
+    };
+    renderReportes();
+    renderJornadasListado();
+  } catch (error) {
+    console.warn('DIDI Tracker: no se pudo cargar la analítica:', error.message);
+  }
+}
+
+function configurarReportes() {
+  const tabs = document.getElementById('report-tabs');
+  if (tabs) {
+    tabs.addEventListener('click', evento => {
+      const boton = evento.target.closest('.report-tab');
+      if (!boton) return;
+      periodoReporte = boton.dataset.periodo || 'dia';
+      tabs.querySelectorAll('.report-tab').forEach(b => b.classList.toggle('active', b === boton));
+      renderReportes();
+    });
+  }
+}
+
+function sincronizarAjustesConfig() {
+  const costo = document.getElementById('configCostoAceite');
+  const intervalo = document.getElementById('configIntervaloAceite');
+  if (costo) costo.value = Number(appData.config.costoAceiteCOP) || 200000;
+  if (intervalo) intervalo.value = Number(appData.config.intervaloAceiteKm) || 5000;
+}
+
+function configurarAjustesCostos() {
+  const costo = document.getElementById('configCostoAceite');
+  const intervalo = document.getElementById('configIntervaloAceite');
+
+  if (costo) {
+    costo.addEventListener('change', () => {
+      appData.config.costoAceiteCOP = Math.max(0, parseFloat(costo.value) || 0);
+      guardarDatos();
+      showToast('Costo de aceite actualizado.', 'success');
+    });
+  }
+
+  if (intervalo) {
+    intervalo.addEventListener('change', () => {
+      appData.config.intervaloAceiteKm = Math.max(0, parseFloat(intervalo.value) || 0);
+      guardarDatos();
+      showToast('Intervalo de aceite actualizado.', 'success');
+    });
+  }
+
+  sincronizarAjustesConfig();
 }
 
 // ==========================================
@@ -1996,33 +2702,37 @@ function aceptarYRegistrarCalculadora() {
     return;
   }
 
-  const nuevoViaje = {
-    id: generarId(),
-    timestamp: new Date().toISOString(),
-    distRecogidaKm: 0,
-    tiempoRecogidaMin: 0,
-    distEntregaKm: distanciaKm,
-    tiempoEntregaMin: tiempoMin,
-    precioCOP,
-    metodoPago: 'Efectivo'
-  };
+  asegurarJornadaActiva().then(activa => {
+    if (!activa) return;
 
-  appData.sesionActual.viajes.push(nuevoViaje);
-  guardarDatos();
-  renderDashboard();
+    const nuevoViaje = {
+      id: generarId(),
+      timestamp: new Date().toISOString(),
+      distRecogidaKm: 0,
+      tiempoRecogidaMin: 0,
+      distEntregaKm: distanciaKm,
+      tiempoEntregaMin: tiempoMin,
+      precioCOP,
+      metodoPago: 'Efectivo'
+    };
 
-  const metricas = calcularMetricasViaje(nuevoViaje);
-  reproducirTono(metricas.semaforo);
+    appData.sesionActual.viajes.push(nuevoViaje);
+    guardarDatos();
+    renderDashboard();
 
-  const tipoToast =
-    metricas.semaforo === 'verde' ? 'success' : metricas.semaforo === 'amarillo' ? 'warning' : 'danger';
-  showToast(
-    `Carrera registrada: ${formatCOP(precioCOP)} · ${metricas.etiquetaSemaforo}.`,
-    tipoToast,
-    4000
-  );
+    const metricas = calcularMetricasViaje(nuevoViaje);
+    reproducirTono(metricas.semaforo);
 
-  limpiarCalculadora();
+    const tipoToast =
+      metricas.semaforo === 'verde' ? 'success' : metricas.semaforo === 'amarillo' ? 'warning' : 'danger';
+    showToast(
+      `Carrera registrada: ${formatCOP(precioCOP)} · ${metricas.etiquetaSemaforo}.`,
+      tipoToast,
+      4000
+    );
+
+    limpiarCalculadora();
+  });
 }
 
 function inicializarCalculadora() {
@@ -2178,6 +2888,8 @@ async function importarRespaldo(archivo) {
     await cargarDatos();
     renderDashboard();
     actualizarEstadoAlmacenamiento();
+    sincronizarAjustesConfig();
+    refrescarAnalitica();
     guardarDatos();
 
     showToast(
@@ -2249,6 +2961,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   await cargarDatos();
   configurarEventListeners();
   configurarRespaldo();
+  configurarReportes();
+  configurarAjustesCostos();
   inicializarNavegacion();
   inicializarCalculadora();
   aplicarModoFormularioViaje('rapido');
