@@ -1345,6 +1345,29 @@ window.eliminarTanqueada = eliminarTanqueada;
 // 9. INICIALIZACIÓN DE LA APLICACIÓN
 // ==========================================
 
+// Registro del Service Worker (PWA offline) con control de ciclo de vida
+function registrarServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  // Evitar error de seguridad al abrir directamente desde file://
+  if (location.protocol !== 'http:' && location.protocol !== 'https:') return;
+
+  navigator.serviceWorker.register('./sw.js').then(registration => {
+    // Control de ciclo de vida: detectar nueva versión disponible
+    registration.addEventListener('updatefound', () => {
+      const nuevoWorker = registration.installing;
+      if (!nuevoWorker) return;
+      nuevoWorker.addEventListener('statechange', () => {
+        if (nuevoWorker.state === 'installed' && navigator.serviceWorker.controller) {
+          // Hay una nueva versión lista; activarla de inmediato
+          nuevoWorker.postMessage({ type: 'SKIP_WAITING' });
+        }
+      });
+    });
+  }).catch(error => {
+    console.warn('DIDI Tracker: registro de Service Worker falló:', error.message);
+  });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   cargarDatos();
   configurarEventListeners();
@@ -1352,4 +1375,5 @@ document.addEventListener('DOMContentLoaded', () => {
   if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') {
     lucide.createIcons();
   }
+  registrarServiceWorker();
 });

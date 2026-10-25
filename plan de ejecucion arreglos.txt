@@ -1,0 +1,164 @@
+# PLAN DE EJECUCIÓN: DIDI TRACKER PRO (PWA)
+
+## Resumen Ejecutivo y Arquitectura
+- **Plataforma:** PWA Client-Side (Mobile-First 100% vertical + Responsive PC).
+- **Almacenamiento:** IndexedDB (Local-First como fuente de la verdad) + Respaldo/Sincronización JSON con Google Drive.
+- **Audio Feedback:** Web Audio API sintético nativo (sin dependencias externas ni Vibration API).
+- **Navegación:** Barra inferior fija (*Bottom Nav*) con 4 módulos (`En Vivo / Turno`, `Calculadora`, `Historial`, `Ajustes / Costos`).
+
+---
+
+## FASE 1: Estabilización, Corrección de Errores Críticos y PWA Real
+**Objetivo:** Eliminar todos los errores visuales y de markup existentes, reparar el responsive en móviles y PC, normalizar rutas de assets e implementar un Service Worker funcional para operación 100% offline.
+
+### Tareas Específicas
+1. **Limpieza de Markup y Rutas (`index.html`):**
+   - Eliminar el texto plano residual `play_circle` al inicio del archivo.
+   - Unificar y normalizar las rutas de assets (`css/styles.css` vs `styles.css`, `js/app.js` vs `app.js`, y rutas de iconos del manifest).
+   - Agregar metatags de viewport `viewport-fit=cover` para compatibilidad con notch de smartphones modernos.
+2. **Corrección del Layout y Botón Flotante (`styles.css`):**
+   - Reparar la regla conflictiva en `@media (min-width: 960px)` sobre `.fixed-cta-container` (remover conflicto entre `position: sticky`, `fixed` y `transform: translateX(-50%)`).
+   - Garantizar diseño fluido desde 360px de ancho (pantallas móviles compactas) hasta monitores ultrawide en PC sin desbordamientos horizontales.
+3. **Service Worker y Soporte Offline (`sw.js` y `app.js`):**
+   - Crear el archivo `sw.js` con estrategia *Stale-While-Revalidate* para assets locales (`index.html`, `styles.css`, `app.js`, iconos) y *Cache-First* para CDNs (Chart.js, Lucide, Google Fonts).
+   - Registrar el Service Worker en `app.js` con control de ciclo de vida (`updatefound`).
+
+### Criterios de Aceptación
+- 0 errores en consola por rutas de recursos 404.
+- El botón CTA ya no aparece desfasado ni montado en la esquina superior izquierda en ninguna resolución.
+- La aplicación se puede instalar como PWA y carga completamente en modo avión (offline).
+
+### Pruebas Browser-QA
+- [ ] Inspección de Consola: Sin advertencias de recursos 404 ni errores de sintaxis.
+- [ ] Responsive Check: Probar viewport móvil (390x844) y escritorio (1920x1080).
+- [ ] Application Tab: Validar Service Worker en estado `activated` y Cache Storage poblado.
+
+---
+
+## FASE 2: Sistema de Notificaciones, Bottom Nav y Ergonomía "One-Thumb"
+**Objetivo:** Erradicar bloqueos de hilo del navegador (`alert()` / `confirm()`), incorporar notificaciones Toast fluidas, modales tipo Bottom Sheet y una barra de navegación inferior adaptada a uso con una sola mano.
+
+### Tareas Específicas
+1. **Sistema Toast No Bloqueante (`app.js`, `styles.css`, `index.html`):**
+   - Crear contenedor `#toast-container` con animaciones de entrada/salida suaves.
+   - Implementar método centralizado `showToast(mensaje, tipo = 'info'|'success'|'warning'|'danger', duracion = 3000)`.
+   - Reemplazar todos los `alert()` nativos por llamadas a `showToast()`.
+2. **Modal de Confirmación Personalizado (`app.js`, `styles.css`, `index.html`):**
+   - Reemplazar `window.confirm()` por un diálogo emergente modal no bloqueante basado en Promesas (`confirmDialog(mensaje, titulo)`).
+3. **Barra de Navegación Inferior (Bottom Nav) Ergonomía Móvil (`index.html`, `styles.css`, `app.js`):**
+   - Maquetar la barra de 4 secciones fijada al borde inferior:
+     1. `Turno Activo` (Dashboard y métricas en vivo).
+     2. `Calculadora` (Pre-viaje rápido).
+     3. `Historial` (Jornadas anteriores y reportes).
+     4. `Ajustes` (Costos, combustible, sincronización).
+   - En PC (`min-width: 960px`), transformar la barra inferior en un sidebar o cabecera integrada limpia.
+   - Implementar switch de vistas SPA con preservación de estado sin recarga.
+
+### Criterios de Aceptación
+- Ninguna acción del usuario activa ventanas modales nativas del navegador.
+- Toda la navegación principal es accesible con el pulgar en el tercio inferior del teléfono.
+- Transición inmediata entre las 4 pestañas sin parpadeos de interfaz.
+
+### Pruebas Browser-QA
+- [ ] Disparar confirmaciones (ej. eliminar viaje) y comprobar resolución de promesas en modal.
+- [ ] Generar múltiples toasts sucesivos y verificar que se apilen y cierren correctamente.
+- [ ] Conmutar entre pestañas y validar scroll y visibilidad en pantallas móviles reales.
+
+---
+
+## FASE 3: Persistencia Local-First (IndexedDB) y Respaldo Google Drive
+**Objetivo:** Superar el límite destructivo de una sola jornada de `localStorage`, implementando una base de datos local robusta con IndexedDB y sincronización/exportación de copias de seguridad hacia Google Drive.
+
+### Tareas Específicas
+1. **Capa de Abstracción IndexedDB (`js/db.js` o módulo DB en `app.js`):**
+   - Crear la base de datos `DidiTrackerDB` (v1) con almacenes de objetos (*Object Stores*):
+     - `jornadas`: `{ id, fechaInicio, fechaFin, estado: 'activa'|'cerrada', resumen }`
+     - `viajes`: `{ id, jornadaId, timestamp, distRecogida, distEntrega, dTotal, tTotal, precio, metodoPago, copHora, copKm, semaforo }`
+     - `tanqueadas`: `{ id, jornadaId, timestamp, montoCOP, galones, nota }`
+     - `gastosPuntuales`: `{ id, jornadaId, timestamp, tipo: 'aceite'|'lavado', montoCOP, nota }`
+     - `config`: Clave-valor para metas, precios y parámetros del vehículo.
+   - Script de migración transparente: si existen datos en `localStorage`, importarlos a IndexedDB en el primer arranque sin pérdida de datos.
+2. **Módulo de Respaldo e Integración con Google Drive (`app.js`, `index.html`):**
+   - Botón de exportación manual/automática a archivo JSON estructurado: `didi_backup_YYYY-MM-DD.json`.
+   - Integración con Google Drive mediante Web Share API (en móvil permite guardar directo en la app de Drive) y enlace de respaldo a carpeta de Google Drive vía URI Intent / File System Access API.
+   - Función de importación/restauración de base de datos desde archivo de respaldo JSON con validación de integridad.
+
+### Criterios de Aceptación
+- La app puede almacenar meses de jornadas completas sin degradación de velocidad.
+- Los datos se mantienen intactos tras cerrar el navegador o reiniciar el dispositivo.
+- El usuario puede exportar su base de datos completa y restaurarla en otro dispositivo mediante el archivo JSON compatible con Drive.
+
+### Pruebas Browser-QA
+- [ ] DevTools > Storage > IndexedDB: Verificar creación de los 5 almacenes y claves primarias.
+- [ ] Exportar respaldo JSON, limpiar datos y restaurar desde el JSON validando coincidencia 100%.
+
+---
+
+## FASE 4: Modo Carga Rápida, Web Audio Feedback y Calculadora Pre-Viaje
+**Objetivo:** Permitir el registro de carreras en menos de 5 segundos, incorporar alertas sonoras sintéticas para evitar distracciones visuales al conducir, e integrar el simulador de aceptación pre-viaje.
+
+### Tareas Específicas
+1. **Modo Rápido de Captura (`index.html`, `app.js`):**
+   - Selector en el formulario de viaje: `[Modo Rápido]` vs `[Desglose Detallado]`.
+   - *Modo Rápido:* Únicamente 3 campos obligatorios: **Distancia Total (km)**, **Tiempo Total (min)** y **Valor DiDi (COP)**.
+2. **Motor de Audio Sintético con Web Audio API (`app.js`):**
+   - Inicializar `AudioContext` en el primer toque de usuario.
+   - Crear sintetizador de tonos:
+     - 🟢 **Rentable (Verde):** Tono dual agudo ascendente (880Hz -> 1200Hz, duración 120ms, curva senoidal limpia).
+     - 🟡 **Aceptable (Amarillo):** Tono neutro estable (660Hz, 150ms).
+     - 🔴 **No Rentable (Rojo):** Tono grave descendente (330Hz -> 220Hz, 200ms).
+   - Interruptor de silencio en la cabecera/ajustes (Mute/Unmute).
+3. **Calculadora Rápida Pre-Viaje (Pestaña 2):**
+   - Pantalla ergonómica con teclado numérico accesible.
+   - Evaluación instantánea de rentabilidad (COP/h y COP/km proyectados) con semáforo dinámico.
+   - Botón destacado **"Aceptar y Registrar"**: toma los valores ingresados en la calculadora, crea la carrera en el turno activo, emite el sonido correspondiente y muestra un Toast de confirmación.
+
+### Criterios de Aceptación
+- Registro de un viaje completable con solo una mano en menos de 5 segundos.
+- Los tonos de audio se reproducen instantáneamente sin desfase ni necesidad de cargar archivos MP3.
+- La calculadora permite evaluar propuestas de DiDi en carrera y registrarlas con un solo clic si son aceptadas.
+
+### Pruebas Browser-QA
+- [ ] AudioContext: Verificar inicialización correcta tras la primera interacción y reproducción de tonos agudo/grave según el semáforo.
+- [ ] Flujo Calculadora -> Viaje: Simular carrera rentable, pulsar "Aceptar y Registrar", verificar inserción en el historial de la jornada activa.
+
+---
+
+## FASE 5: Cierre de Turno, Costos Ocultos y Analítica Multi-Jornada
+**Objetivo:** Implementar el cierre explícito de jornada con congelamiento de métricas, control de gastos de mantenimiento (aceite y lavados) y reportes comparativos por franjas horarias y períodos.
+
+### Tareas Específicas
+1. **Gestión de Costos Ocultos (Aceite y Lavados):**
+   - Botón directo para registrar **Lavado de Vehículo** (monto COP manual, nota, resta a la ganancia de bolsillo de la jornada).
+   - Botón de **Cambio de Aceite** (monto puntual promedio $200.000 COP, odómetro actual, intervalo configurable).
+   - Impacto visual en el panel de finanzas: Ganancia Bruta vs Gasolina vs Mantenimiento = Ganancia Neta Real.
+2. **Flujo de "Finalizar Turno / Cerrar Jornada" (`app.js`):**
+   - Botón de cierre en la pantalla de turno activo con confirmación.
+   - Generación de resumen diario: total ganado, promedio/hora, costo de combustible, gastos de lavado/aceite, ganancia neta final y tiempo total conectado.
+   - Estado de la jornada cambia a `cerrada`. La próxima carrera solicitará "Iniciar Nueva Jornada".
+3. **Pestaña de Historial y Reportes Analíticos (Pestaña 3):**
+   - Selectores de vista: `Día`, `Semana`, `Mes`.
+   - Métricas agregadas y comparativas entre períodos pasados.
+   - **Analítica de Franjas Horarias:** Gráfico de rendimiento que clasifica los viajes por bloques horarios (ej. 06:00-09:00, 09:00-12:00, 12:00-15:00, 15:00-18:00, 18:00-22:00, 22:00+) para identificar visualmente las horas más rentables.
+
+### Criterios de Aceptación
+- Las jornadas cerradas quedan guardadas inmutables en el histórico.
+- Los gastos de aceite y lavado impactan correctamente la ganancia neta.
+- El conductor puede identificar en qué horas y días obtiene mayor rentabilidad horaria.
+
+### Pruebas Browser-QA
+- [ ] Cerrar un turno y verificar que las métricas queden fijadas y accesibles en el historial.
+- [ ] Registrar un lavado de $15.000 y un aceite de $200.000, comprobando el recálculo en la ganancia neta real.
+- [ ] Renderizar el reporte de franjas horarias con viajes en diferentes horas del día y validar visualización en Chart.js.
+
+---
+
+## Matriz de Ejecución y Dependencias Técnicas
+
+| Fase | Título | Prerrequisito | Archivos Clave |
+| :--- | :--- | :--- | :--- |
+| **Fase 1** | Estabilización, Bugfixes y PWA | Ninguno | `index.html`, `styles.css`, `sw.js`, `app.js` |
+| **Fase 2** | UI One-Thumb, Bottom Nav y Toasts | Fase 1 completada | `index.html`, `styles.css`, `app.js` |
+| **Fase 3** | IndexedDB y Backup Google Drive | Fase 2 completada | `js/db.js`, `app.js`, `index.html` |
+| **Fase 4** | Modo Rápido, Web Audio y Calculadora | Fase 3 completada | `app.js`, `index.html`, `styles.css` |
+| **Fase 5** | Cierre de Turno, Costos y Franjas Horarias | Fase 4 completada | `app.js`, `index.html`, `styles.css` |

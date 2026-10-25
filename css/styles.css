@@ -819,14 +819,13 @@ input[type="text"]:focus {
     grid-template-columns: 1fr 1.6fr;
   }
   .fixed-cta-container {
-    position: sticky;
+    position: fixed;
     left: auto;
     right: 24px;
     bottom: 16px;
     width: auto;
-    min-width: 260px;
+    min-width: 280px;
     margin: 0;
-    transform: translateX(-50%);
   }
   .btn-fixed-cta {
     width: 100%;
@@ -845,4 +844,9 @@ main.dashboard-container { padding-bottom: 80px !important; }
 }
 .goal-slider { margin-bottom: 12px !important; }
 .progress-bar-bg { margin-top: 4px; }
-html { scroll-padding-top: 80px; }
+html {
+  scroll-padding-top: 80px;
+}
+body {
+  overflow-x: hidden;
+}
