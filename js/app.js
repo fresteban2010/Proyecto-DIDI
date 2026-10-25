@@ -5,14 +5,9 @@
 
 const STORAGE_KEY = 'didi_tracker_data';
 
-// SVG oficial del isotipo D-Gauge (Tacómetro + Flecha Financiera Ascendente)
+// Logo oficial: tacómetro vintage de auto clásico de los 80 (PNG)
 const BRAND_LOGO_SVG = `
-  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M4.93 19.07A10 10 0 1 1 19.07 4.93" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round"/>
-    <path d="M19.07 19.07A10 10 0 0 0 21.5 13.5" stroke="#FFFFFF" stroke-opacity="0.45" stroke-width="2.4" stroke-linecap="round"/>
-    <path d="M11 13L17.5 6.5M17.5 6.5H13.5M17.5 6.5V10.5" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
-    <circle cx="10.5" cy="13.5" r="2" fill="#FFFFFF"/>
-  </svg>
+  <img src="assets/icons/logo-tacometro.png" alt="DIDI Tracker" width="44" height="44" />
 `.trim();
 
 // Configuración por defecto solicitada
@@ -526,19 +521,108 @@ function calcularResumenSesion(
 // ==========================================
 
 /**
- * Garantiza que el contenedor .brand-logo mantenga siempre el isotipo SVG
- * personalizado D-Gauge y no dependa de ningún icono de Lucide Icons.
+ * Garantiza que el contenedor .brand-logo mantenga siempre el logo del
+ * tacómetro vintage (PNG) y no dependa de ningún icono de Lucide Icons.
  */
 function renderLogoMarca() {
   const brandLogoEl = document.querySelector('.brand-logo');
   if (!brandLogoEl) return;
 
   const tieneIconoLucide = brandLogoEl.querySelector('[data-lucide]');
-  const tieneSvg = brandLogoEl.querySelector('svg');
+  const tieneLogo = brandLogoEl.querySelector('img');
 
-  if (tieneIconoLucide || !tieneSvg) {
+  if (tieneIconoLucide || !tieneLogo) {
     brandLogoEl.innerHTML = BRAND_LOGO_SVG;
   }
+}
+
+// ==========================================
+// ANIMACIONES DE CONTADORES
+// ==========================================
+const CONTADORES_ANIMADOS = [
+  'sesion-total-ganado',
+  'sesion-prom-hora',
+  'sesion-prom-km',
+  'gas-gasto-estimado',
+  'gas-gasto-mantenimiento',
+  'gas-ganancia-neta',
+  'gas-km-total',
+  'uv-cop-hora',
+  'uv-cop-km',
+  'uv-precio'
+];
+
+function parsearNumeroEsCO(texto) {
+  const limpio = String(texto).replace(/[^\d,.-]/g, '').trim();
+  if (!limpio) return NaN;
+  // es-CO: punto = separador de miles, coma = decimales
+  return Number(limpio.replace(/\./g, '').replace(',', '.'));
+}
+
+function animarContador(el) {
+  if (!el) return;
+  const textoFinal = el.textContent.trim();
+  const partes = textoFinal.match(/^([^\d-]*)(-?[\d.,]+)(.*)$/s);
+  if (!partes) return;
+
+  const prefijo = partes[1];
+  const numeroTexto = partes[2];
+  const sufijo = partes[3];
+  const destino = parsearNumeroEsCO(numeroTexto);
+  if (!Number.isFinite(destino)) return;
+
+  const esMoneda = prefijo.includes('$');
+  const decimales = esMoneda ? 0 : (numeroTexto.split(',')[1] || '').length || 1;
+  const anterior = Number.isFinite(Number(el.dataset.animValor))
+    ? Number(el.dataset.animValor)
+    : 0;
+  el.dataset.animValor = String(destino);
+
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduceMotion || Math.abs(destino - anterior) < 0.01) {
+    el.textContent = textoFinal;
+    return;
+  }
+
+  const duracion = 650;
+  const inicio = performance.now();
+  if (el._rafContador) cancelAnimationFrame(el._rafContador);
+
+  const paso = ahora => {
+    const t = Math.min(1, (ahora - inicio) / duracion);
+    const eased = 1 - Math.pow(1 - t, 3);
+    const actual = anterior + (destino - anterior) * eased;
+
+    if (esMoneda) {
+      el.textContent = `${formatCOP(actual)}${sufijo}`;
+    } else {
+      el.textContent = `${prefijo}${actual.toLocaleString('es-CO', {
+        minimumFractionDigits: decimales,
+        maximumFractionDigits: decimales
+      })}${sufijo}`;
+    }
+
+    if (t < 1) {
+      el._rafContador = requestAnimationFrame(paso);
+    } else {
+      el.textContent = textoFinal;
+      el._rafContador = null;
+    }
+  };
+  el._rafContador = requestAnimationFrame(paso);
+}
+
+function animarContadoresDashboard() {
+  CONTADORES_ANIMADOS.forEach(id => animarContador(document.getElementById(id)));
+}
+
+function dispararShakeTacometro() {
+  const tarjeta = document.getElementById('card-ultimo-viaje');
+  if (!tarjeta) return;
+  tarjeta.classList.remove('shake-gauge');
+  void tarjeta.offsetWidth;
+  tarjeta.classList.add('shake-gauge');
+  tarjeta.addEventListener('animationend', () => tarjeta.classList.remove('shake-gauge'), { once: true });
 }
 
 function renderDashboard() {
@@ -563,6 +647,8 @@ function renderDashboard() {
   if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') {
     lucide.createIcons();
   }
+
+  animarContadoresDashboard();
 }
 
 function renderEstadoJornada(resumen) {
@@ -902,6 +988,18 @@ function renderTablaHistorial(resumen) {
 // ==========================================
 
 function renderGraficos(resumen) {
+  // Animaciones globales de Chart.js (una sola vez)
+  if (typeof Chart !== 'undefined' && !Chart.__didiAnimDefaults) {
+    try {
+      Chart.defaults.animation = { duration: 700, easing: 'easeOutQuart' };
+      if (Chart.defaults.animations && Chart.defaults.animations.colors) {
+        Chart.defaults.animations.colors = { duration: 500, easing: 'easeOutQuad' };
+      }
+      Chart.__didiAnimDefaults = true;
+    } catch (error) {
+      // Si Chart.js cambia su API, se conservan sus animaciones por defecto.
+    }
+  }
   renderGraficoPagos(resumen);
   renderGraficoCarreras(resumen);
 }
@@ -1303,6 +1401,7 @@ function guardarViajeDesdeFormulario(evento) {
   guardarDatos();
   cerrarModalViaje();
   renderDashboard();
+  dispararShakeTacometro();
 
   const metricasGuardadas = calcularMetricasViaje({
     distRecogidaKm,
@@ -1997,17 +2096,29 @@ function inicializarNavegacion() {
   const nav = document.getElementById('bottom-nav');
   if (!nav) return;
 
+  const itemsNav = Array.from(nav.querySelectorAll('.nav-item'));
+
   nav.addEventListener('click', evento => {
     const boton = evento.target.closest('.nav-item');
     if (!boton || !boton.dataset.view) return;
 
     const vista = `view-${boton.dataset.view}`;
 
+    const indiceNuevo = itemsNav.indexOf(boton);
+    const indiceAnterior = itemsNav.indexOf(nav.querySelector('.nav-item.active'));
+    const claseEntrada = indiceNuevo >= indiceAnterior ? 'view-slide-left' : 'view-slide-right';
+
     nav.querySelectorAll('.nav-item').forEach(item => {
       item.classList.toggle('active', item === boton);
     });
     document.querySelectorAll('.app-view').forEach(vistaEl => {
-      vistaEl.classList.toggle('hidden', vistaEl.id !== vista);
+      const esDestino = vistaEl.id === vista;
+      vistaEl.classList.toggle('hidden', !esDestino);
+      vistaEl.classList.remove('view-slide-left', 'view-slide-right');
+      if (esDestino) {
+        void vistaEl.offsetWidth; // reinicia la animación
+        vistaEl.classList.add(claseEntrada);
+      }
     });
 
     // Al abrir Historial, refrescar reportes y jornadas desde IndexedDB

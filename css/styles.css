@@ -68,13 +68,21 @@ body {
 .brand-logo {
   width: 44px;
   height: 44px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #FF6600 0%, #FF8800 100%);
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 35%, #1C273C, #0B0F19 72%);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-main);
-  box-shadow: 0 4px 12px rgba(255, 102, 0, 0.30);
+  box-shadow: 0 0 0 2px rgba(255, 102, 0, 0.55), 0 4px 14px rgba(255, 102, 0, 0.32);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.brand-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
   flex-shrink: 0;
 }
 
@@ -1256,3 +1264,158 @@ body {
 .report-delta { color: var(--text-muted); font-size: 0.72rem; }
 .report-delta.positivo { color: var(--green); }
 .report-delta.negativo { color: var(--red); }
+
+/* === FASE 6: SISTEMA DE ANIMACIONES PULIDAS === */
+
+:root {
+  --ease-out-smooth: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* --- Botones: micro-interacciones --- */
+.btn {
+  transition:
+    transform 0.18s var(--ease-out-smooth),
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.25s ease;
+  will-change: transform;
+}
+.btn:hover { transform: translateY(-1px); }
+.btn:active { transform: scale(0.96) translateY(0); }
+.btn-primary { box-shadow: 0 6px 18px rgba(255, 102, 0, 0.22); }
+.btn-primary:hover {
+  box-shadow: 0 10px 26px rgba(255, 102, 0, 0.42), inset 0 0 0 1px rgba(255, 136, 0, 0.45);
+}
+.btn-secondary:hover, .btn-outline:hover { box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35); }
+.btn-icon:hover, .btn-table-action:hover { transform: translateY(-1px) scale(1.04); }
+.btn-icon:active, .btn-table-action:active { transform: scale(0.94); }
+
+/* --- CTA fijo: pulso suave --- */
+.btn-fixed-cta { animation: ctaPulse 3.2s ease-in-out infinite; }
+.btn-fixed-cta:hover { animation-play-state: paused; transform: translateY(-2px) scale(1.01); }
+.btn-fixed-cta:active { transform: scale(0.97); }
+@keyframes ctaPulse {
+  0%, 100% { box-shadow: 0 10px 25px rgba(255, 102, 0, 0.45), 0 0 0 0 rgba(255, 102, 0, 0.45); }
+  50% { box-shadow: 0 10px 25px rgba(255, 102, 0, 0.45), 0 0 0 9px rgba(255, 102, 0, 0); }
+}
+
+/* --- Vistas SPA: transición direccional --- */
+.app-view.view-slide-left { animation: viewSlideLeft 0.32s var(--ease-out-smooth) both; }
+.app-view.view-slide-right { animation: viewSlideRight 0.32s var(--ease-out-smooth) both; }
+@keyframes viewSlideLeft {
+  from { opacity: 0; transform: translateX(22px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes viewSlideRight {
+  from { opacity: 0; transform: translateX(-22px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* --- Modales: aparición con escala --- */
+.modal-overlay { animation: overlayFade 0.2s ease both; }
+.modal-content { animation: modalPop 0.28s var(--ease-spring) both; }
+@keyframes overlayFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes modalPop {
+  from { opacity: 0; transform: translateY(14px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* --- Toasts: entrada desde arriba --- */
+.toast { animation: toastInTop 0.3s var(--ease-out-smooth); }
+.toast.toast-out { animation: toastOutTop 0.24s ease forwards; }
+@keyframes toastInTop {
+  from { opacity: 0; transform: translateY(-14px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes toastOutTop {
+  to { opacity: 0; transform: translateY(-10px) scale(0.97); }
+}
+
+/* --- Tarjetas: elevación sutil --- */
+.stat-card:hover,
+.fuel-log-card:hover,
+.chart-card:hover,
+.settings-card:hover,
+.jornada-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 136, 0, 0.32);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28);
+}
+
+/* --- Semáforo: glow respirando --- */
+.traffic-green { animation: glowGreen 2.6s ease-in-out infinite; }
+.traffic-yellow { animation: glowYellow 2.6s ease-in-out infinite; }
+.traffic-red { animation: glowRed 2.6s ease-in-out infinite; }
+@keyframes glowGreen {
+  0%, 100% { box-shadow: 0 0 14px rgba(16, 185, 129, 0.14); }
+  50% { box-shadow: 0 0 30px rgba(16, 185, 129, 0.34); }
+}
+@keyframes glowYellow {
+  0%, 100% { box-shadow: 0 0 14px rgba(245, 158, 11, 0.14); }
+  50% { box-shadow: 0 0 30px rgba(245, 158, 11, 0.34); }
+}
+@keyframes glowRed {
+  0%, 100% { box-shadow: 0 0 14px rgba(239, 68, 68, 0.14); }
+  50% { box-shadow: 0 0 30px rgba(239, 68, 68, 0.34); }
+}
+
+/* --- Shake del tacómetro al registrar carrera --- */
+.shake-gauge { animation: shakeGauge 0.5s var(--ease-out-smooth); }
+@keyframes shakeGauge {
+  0%, 100% { transform: translateX(0) rotate(0); }
+  15% { transform: translateX(-4px) rotate(-0.4deg); }
+  30% { transform: translateX(4px) rotate(0.4deg); }
+  45% { transform: translateX(-3px) rotate(-0.2deg); }
+  60% { transform: translateX(3px) rotate(0.2deg); }
+  75% { transform: translateX(-1px) rotate(0); }
+}
+
+/* --- Navegación: pop del icono activo --- */
+.nav-item svg { transition: transform 0.2s var(--ease-out-smooth); }
+.nav-item.active svg { animation: navPop 0.32s var(--ease-spring); }
+@keyframes navPop {
+  0% { transform: scale(0.8); }
+  60% { transform: scale(1.16); }
+  100% { transform: scale(1); }
+}
+
+/* --- Barra de progreso: transición + brillo --- */
+.progress-bar-fill {
+  position: relative;
+  overflow: hidden;
+  transition: width 0.7s var(--ease-out-smooth), background-color 0.4s ease;
+}
+.progress-bar-fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  transform: translateX(-100%);
+  animation: shimmer 2.6s ease-in-out infinite;
+}
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  60%, 100% { transform: translateX(100%); }
+}
+
+/* --- Inputs: glow al enfocar --- */
+input[type="number"]:focus,
+input[type="text"]:focus {
+  box-shadow: 0 0 0 3px rgba(255, 102, 0, 0.16);
+}
+
+/* --- Accesibilidad: movimiento reducido --- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .btn-fixed-cta { animation: none !important; }
+  .progress-bar-fill::after { display: none; }
+}
