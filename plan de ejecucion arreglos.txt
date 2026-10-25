@@ -60,9 +60,9 @@
 - Transición inmediata entre las 4 pestañas sin parpadeos de interfaz.
 
 ### Pruebas Browser-QA
-- [ ] Disparar confirmaciones (ej. eliminar viaje) y comprobar resolución de promesas en modal.
-- [ ] Generar múltiples toasts sucesivos y verificar que se apilen y cierren correctamente.
-- [ ] Conmutar entre pestañas y validar scroll y visibilidad en pantallas móviles reales.
+- [x] Disparar confirmaciones (ej. eliminar viaje) y comprobar resolución de promesas en modal.
+- [x] Generar múltiples toasts sucesivos y verificar que se apilen y cierren correctamente.
+- [x] Conmutar entre pestañas y validar scroll y visibilidad en pantallas móviles reales.
 
 ---
 

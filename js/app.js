@@ -962,15 +962,15 @@ function guardarViajeDesdeFormulario(evento) {
       : metodoValor;
 
   if (distRecogidaKm + distEntregaKm <= 0) {
-    alert('La distancia total del viaje debe ser mayor a 0 km.');
+    showToast('La distancia total del viaje debe ser mayor a 0 km.', 'warning');
     return;
   }
   if (tiempoRecogidaMin + tiempoEntregaMin <= 0) {
-    alert('El tiempo total del viaje debe ser mayor a 0 minutos.');
+    showToast('El tiempo total del viaje debe ser mayor a 0 minutos.', 'warning');
     return;
   }
   if (precioCOP <= 0) {
-    alert('El precio del viaje debe ser mayor a $0 COP.');
+    showToast('El precio del viaje debe ser mayor a $0 COP.', 'warning');
     return;
   }
 
@@ -1004,6 +1004,10 @@ function guardarViajeDesdeFormulario(evento) {
   guardarDatos();
   cerrarModalViaje();
   renderDashboard();
+  showToast(
+    idExistente ? 'Carrera actualizada correctamente.' : 'Carrera registrada correctamente.',
+    'success'
+  );
 }
 
 function abrirModalTanqueada() {
@@ -1033,7 +1037,7 @@ function guardarTanqueadaDesdeFormulario(evento) {
   const nota = document.getElementById('tanqueadaNota')?.value?.trim() || '';
 
   if (montoCOP <= 0) {
-    alert('Ingresa un monto válido en COP para la tanqueada.');
+    showToast('Ingresa un monto válido en COP para la tanqueada.', 'warning');
     return;
   }
 
@@ -1055,6 +1059,7 @@ function guardarTanqueadaDesdeFormulario(evento) {
   guardarDatos();
   cerrarModalTanqueada();
   renderDashboard();
+  showToast('Tanqueada registrada correctamente.', 'success');
 }
 
 // ==========================================
@@ -1071,23 +1076,26 @@ function eliminarViaje(id) {
   const viaje = appData.sesionActual.viajes.find(v => v.id === id);
   if (!viaje) return;
 
-  const confirmar = window.confirm(
-    `¿Seguro que deseas eliminar este viaje de ${formatCOP(viaje.precioCOP)}?`
-  );
-  if (!confirmar) return;
-
-  appData.sesionActual.viajes = appData.sesionActual.viajes.filter(v => v.id !== id);
-  guardarDatos();
-  renderDashboard();
+  confirmDialog(
+    `¿Seguro que deseas eliminar este viaje de ${formatCOP(viaje.precioCOP)}?`,
+    'Eliminar viaje'
+  ).then(confirmar => {
+    if (!confirmar) return;
+    appData.sesionActual.viajes = appData.sesionActual.viajes.filter(v => v.id !== id);
+    guardarDatos();
+    renderDashboard();
+    showToast('Viaje eliminado.', 'info');
+  });
 }
 
 function eliminarTanqueada(id) {
-  const confirmar = window.confirm('¿Deseas eliminar este registro de tanqueada?');
-  if (!confirmar) return;
-
-  appData.sesionActual.tanqueadas = appData.sesionActual.tanqueadas.filter(t => t.id !== id);
-  guardarDatos();
-  renderDashboard();
+  confirmDialog('¿Deseas eliminar este registro de tanqueada?', 'Eliminar tanqueada').then(confirmar => {
+    if (!confirmar) return;
+    appData.sesionActual.tanqueadas = appData.sesionActual.tanqueadas.filter(t => t.id !== id);
+    guardarDatos();
+    renderDashboard();
+    showToast('Registro de tanqueada eliminado.', 'info');
+  });
 }
 
 function reiniciarJornada() {
@@ -1098,16 +1106,19 @@ function reiniciarJornada() {
     ? '¿Estás seguro de iniciar una nueva jornada? Se borrarán los viajes y tanqueadas de la sesión actual.'
     : '¿Deseas reiniciar el contador de inicio de la jornada actual?';
 
-  if (!window.confirm(mensaje)) return;
+  confirmDialog(mensaje, 'Iniciar / Reiniciar Jornada').then(confirmar => {
+    if (!confirmar) return;
 
-  appData.sesionActual = {
-    fechaInicio: new Date().toISOString(),
-    viajes: [],
-    tanqueadas: []
-  };
+    appData.sesionActual = {
+      fechaInicio: new Date().toISOString(),
+      viajes: [],
+      tanqueadas: []
+    };
 
-  guardarDatos();
-  renderDashboard();
+    guardarDatos();
+    renderDashboard();
+    showToast('Nueva jornada iniciada.', 'success');
+  });
 }
 
 function exportarCSV() {
@@ -1118,7 +1129,7 @@ function exportarCSV() {
   );
 
   if (resumen.viajesCalculados.length === 0) {
-    alert('No hay viajes en la sesión actual para exportar.');
+    showToast('No hay viajes en la sesión actual para exportar.', 'info');
     return;
   }
 
@@ -1342,6 +1353,104 @@ window.eliminarViaje = eliminarViaje;
 window.eliminarTanqueada = eliminarTanqueada;
 
 // ==========================================
+// 8B. NOTIFICACIONES TOAST, CONFIRMACIÓN Y NAVEGACIÓN SPA (FASE 2)
+// ==========================================
+
+const TOAST_ICONOS = {
+  info: 'info',
+  success: 'check-circle-2',
+  warning: 'alert-triangle',
+  danger: 'x-circle'
+};
+
+function showToast(mensaje, tipo = 'info', duracion = 3000) {
+  const contenedor = document.getElementById('toast-container');
+  if (!contenedor) return;
+
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${tipo}`;
+
+  const icono = document.createElement('i');
+  icono.setAttribute('data-lucide', TOAST_ICONOS[tipo] || 'info');
+
+  const texto = document.createElement('span');
+  texto.textContent = mensaje;
+
+  toast.appendChild(icono);
+  toast.appendChild(texto);
+  contenedor.appendChild(toast);
+
+  if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') {
+    lucide.createIcons();
+  }
+
+  setTimeout(() => {
+    toast.classList.add('toast-out');
+    setTimeout(() => toast.remove(), 260);
+  }, duracion);
+}
+
+function confirmDialog(mensaje, titulo = 'Confirmar') {
+  return new Promise(resolver => {
+    const modal = document.getElementById('modal-confirm');
+    if (!modal) {
+      resolver(false);
+      return;
+    }
+
+    const elTitulo = document.getElementById('confirm-titulo');
+    const elMensaje = document.getElementById('confirm-mensaje');
+    const btnSi = document.getElementById('btn-confirm-si');
+    const btnNo = document.getElementById('btn-confirm-no');
+    const btnX = document.getElementById('btn-confirm-x');
+
+    elTitulo.textContent = titulo;
+    elMensaje.textContent = mensaje;
+
+    const cerrar = resultado => {
+      modal.classList.add('hidden');
+      modal.setAttribute('aria-hidden', 'true');
+      document.removeEventListener('keydown', onEscape);
+      resolver(resultado);
+    };
+
+    const onEscape = e => {
+      if (e.key === 'Escape') cerrar(false);
+    };
+    document.addEventListener('keydown', onEscape);
+
+    // Asignación (no addEventListener) para evitar acumulación de handlers
+    btnSi.onclick = () => cerrar(true);
+    btnNo.onclick = () => cerrar(false);
+    btnX.onclick = () => cerrar(false);
+
+    modal.classList.remove('hidden');
+    modal.setAttribute('aria-hidden', 'false');
+  });
+}
+
+function inicializarNavegacion() {
+  const nav = document.getElementById('bottom-nav');
+  if (!nav) return;
+
+  nav.addEventListener('click', evento => {
+    const boton = evento.target.closest('.nav-item');
+    if (!boton || !boton.dataset.view) return;
+
+    const vista = `view-${boton.dataset.view}`;
+
+    nav.querySelectorAll('.nav-item').forEach(item => {
+      item.classList.toggle('active', item === boton);
+    });
+    document.querySelectorAll('.app-view').forEach(vistaEl => {
+      vistaEl.classList.toggle('hidden', vistaEl.id !== vista);
+    });
+
+    window.scrollTo(0, 0);
+  });
+}
+
+// ==========================================
 // 9. INICIALIZACIÓN DE LA APLICACIÓN
 // ==========================================
 
@@ -1371,6 +1480,7 @@ function registrarServiceWorker() {
 document.addEventListener('DOMContentLoaded', () => {
   cargarDatos();
   configurarEventListeners();
+  inicializarNavegacion();
   renderDashboard();
   if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') {
     lucide.createIcons();

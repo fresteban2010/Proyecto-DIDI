@@ -52,8 +52,9 @@
     </button>
   </div>
 
-  <!-- DASHBOARD PRINCIPAL -->
+  <!-- DASHBOARD PRINCIPAL (VISTAS SPA) -->
   <main class="dashboard-container">
+    <div id="view-turno" class="app-view">
 
     <!-- BLOQUE 1: ÚLTIMO VIAJE (AUDITORÍA INMEDIATA) -->
     <section class="section-block">
@@ -261,6 +262,9 @@
       </div>
     </section>
 
+    </div>
+
+    <div id="view-historial" class="app-view hidden">
     <!-- BLOQUE 5: HISTORIAL DE CARRERAS -->
     <section class="section-block">
       <div class="section-header">
@@ -294,6 +298,31 @@
       </div>
     </section>
 
+    </div>
+
+    <div id="view-calculadora" class="app-view hidden">
+      <div class="section-block">
+        <div class="section-header">
+          <h2><i data-lucide="calculator"></i> Calculadora Pre-Viaje</h2>
+        </div>
+        <div class="card empty-state">
+          <i data-lucide="timer"></i>
+          <p><strong>Módulo en construcción.</strong> La evaluación instantánea de rentabilidad pre-viaje y el registro con un clic llegarán en la <strong>Fase 4</strong>.</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="view-ajustes" class="app-view hidden">
+      <div class="section-block">
+        <div class="section-header">
+          <h2><i data-lucide="settings"></i> Ajustes y Costos</h2>
+        </div>
+        <div class="card empty-state">
+          <i data-lucide="wrench"></i>
+          <p><strong>Módulo en construcción.</strong> Costos de combustible, mantenimiento y sincronización llegarán en las <strong>Fases 3 y 5</strong>.</p>
+        </div>
+      </div>
+    </div>
   </main>
 
   <!-- MODAL 1: ENCUESTA DE VIAJE (REGISTRAR / EDITAR CARRERA) -->
@@ -458,6 +487,46 @@
       </form>
     </div>
   </div>
+
+  <!-- MODAL 3: CONFIRMACIÓN PERSONALIZADA (PROMESA) -->
+  <div id="modal-confirm" class="modal-overlay hidden" aria-hidden="true">
+    <div class="modal-content modal-confirm">
+      <div class="modal-header">
+        <h3 id="confirm-titulo">Confirmar</h3>
+        <button type="button" id="btn-confirm-x" class="btn-icon" aria-label="Cerrar">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <p id="confirm-mensaje" class="confirm-mensaje"></p>
+      <div class="modal-actions">
+        <button type="button" id="btn-confirm-no" class="btn btn-secondary">Cancelar</button>
+        <button type="button" id="btn-confirm-si" class="btn btn-danger">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- NAVGACIÓN INFERIOR (BOTTOM NAV ONE-THUMB) -->
+  <nav class="bottom-nav" id="bottom-nav" aria-label="Navegación principal">
+    <button type="button" class="nav-item active" data-view="turno">
+      <i data-lucide="activity"></i>
+      <span>Turno</span>
+    </button>
+    <button type="button" class="nav-item" data-view="calculadora">
+      <i data-lucide="calculator"></i>
+      <span>Calculadora</span>
+    </button>
+    <button type="button" class="nav-item" data-view="historial">
+      <i data-lucide="history"></i>
+      <span>Historial</span>
+    </button>
+    <button type="button" class="nav-item" data-view="ajustes">
+      <i data-lucide="settings"></i>
+      <span>Ajustes</span>
+    </button>
+  </nav>
+
+  <!-- CONTENEDOR DE NOTIFICACIONES TOAST -->
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
 
   <script src="js/app.js"></script>
 </body>
