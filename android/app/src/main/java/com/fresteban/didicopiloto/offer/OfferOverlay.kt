@@ -10,6 +10,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.WindowManager
 import android.widget.Button
+import android.widget.FrameLayout
 import android.widget.TextView
 import com.fresteban.didicopiloto.R
 import java.util.Locale
@@ -29,7 +30,8 @@ class OfferOverlay(private val service: AccessibilityService) {
     fun show(offer: Offer, decision: Decision, onRegister: () -> Unit) {
         hide()
 
-        val card = LayoutInflater.from(service).inflate(R.layout.overlay_offer, null)
+        val card = LayoutInflater.from(service)
+            .inflate(R.layout.overlay_offer, FrameLayout(service), false)
         card.contentDescription =
             "Oferta de ${offer.precioCOP} pesos, recogida de ${offer.kmRecogida} kilómetros"
         val tvSemaforo = card.findViewById<TextView>(R.id.tvSemaforo)

@@ -21,15 +21,13 @@ class BootReceiver : BroadcastReceiver() {
         if (!puedeNotificar(context)) return
 
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            manager.createNotificationChannel(
-                NotificationChannel(
-                    CANAL,
-                    "Estado del copiloto",
-                    NotificationManager.IMPORTANCE_DEFAULT
-                )
+        manager.createNotificationChannel(
+            NotificationChannel(
+                CANAL,
+                "Estado del copiloto",
+                NotificationManager.IMPORTANCE_DEFAULT
             )
-        }
+        )
 
         val abrir = PendingIntent.getActivity(
             context,

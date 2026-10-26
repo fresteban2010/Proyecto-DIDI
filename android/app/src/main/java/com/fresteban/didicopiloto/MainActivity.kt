@@ -1,6 +1,7 @@
 package com.fresteban.didicopiloto
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -89,6 +90,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    @SuppressLint("BatteryLife")
     private fun pedirBateria() {
         val power = getSystemService(POWER_SERVICE) as PowerManager
         if (power.isIgnoringBatteryOptimizations(packageName)) {
