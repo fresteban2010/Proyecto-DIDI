@@ -11,8 +11,13 @@ android {
         applicationId = "com.fresteban.didicopiloto"
         minSdk = 26
         targetSdk = 35
-        versionCode = 4
-        versionName = "0.1.3"
+        versionCode = 5
+        versionName = "0.1.4"
+
+        // El teléfono objetivo es arm64; evita empaquetar ML Kit para ABIs que no se usan.
+        ndk {
+            abiFilters += listOf("arm64-v8a")
+        }
 
         buildConfigField("String", "PWA_BASE_URL", "\"https://fresteban2010.github.io/Proyecto-DIDI/\"")
     }
@@ -66,6 +71,9 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("com.google.android.material:material:1.12.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
+
+    // OCR on-device: lee la oferta cuando DiDi no expone nodos de accesibilidad.
+    implementation("com.google.mlkit:text-recognition:16.0.1")
 
     testImplementation("junit:junit:4.13.2")
 }

@@ -1,13 +1,17 @@
 package com.fresteban.didicopiloto.offer
 
 import android.accessibilityservice.AccessibilityService
+import android.graphics.Bitmap
 import android.graphics.Rect
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.view.Display
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityWindowInfo
+import androidx.core.content.ContextCompat
 import com.fresteban.didicopiloto.bridge.PwaBridge
 import com.fresteban.didicopiloto.data.SettingsRepository
 import com.fresteban.didicopiloto.data.SharedPrefsStore
@@ -30,6 +34,9 @@ class OfferAccessibilityService : AccessibilityService() {
     private var ultimoHashAt: Long = 0L
     private var ultimoEventoAt: Long = 0L
     private var ultimoDiagAt: Long = 0L
+    private var ocr: OfferOcr? = null
+    private var capturando: Boolean = false
+    private var ultimaCapturaAt: Long = 0L
 
     private val escuchaNotificaciones: (List<String>) -> Unit = { textos ->
         evaluar(textos, origen = "notificacion")
@@ -51,6 +58,9 @@ class OfferAccessibilityService : AccessibilityService() {
         evaluacionPendiente?.let { handler.removeCallbacks(it) }
         overlay?.hide()
         overlay = null
+        ocr?.cerrar()
+        ocr = null
+        capturando = false
         super.onDestroy()
     }
 
@@ -117,6 +127,8 @@ class OfferAccessibilityService : AccessibilityService() {
                 event.eventType,
                 ventanas = ventanas
             )
+            // DiDi no expone la oferta como nodos: se lee por OCR.
+            intentarOcr(event.eventType)
         }
 
         if (!OfferDetector.pareceOferta(unicos)) {
@@ -177,6 +189,105 @@ class OfferAccessibilityService : AccessibilityService() {
 
         for (i in 0 until nodo.childCount) {
             recolectar(nodo.getChild(i), salida, incluirInvisibles)
+        }
+    }
+
+    /**
+     * Plan B: cuando DiDi no expone la oferta en accesibilidad, se toma una
+     * captura de pantalla y se pasa por OCR on-device.
+     */
+    private fun intentarOcr(tipoEvento: Int) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
+        if (tipoEvento != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED &&
+            tipoEvento != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+        ) {
+            return
+        }
+        if (capturando || overlay?.estaVisible() == true) return
+
+        val ahora = SystemClock.uptimeMillis()
+        if (ahora - ultimaCapturaAt < 1_500) return
+        ultimaCapturaAt = ahora
+        capturando = true
+
+        val cliente = ocr ?: OfferOcr().also { ocr = it }
+
+        runCatching {
+            takeScreenshot(
+                Display.DEFAULT_DISPLAY,
+                ContextCompat.getMainExecutor(this),
+                object : AccessibilityService.TakeScreenshotCallback {
+                    override fun onSuccess(screenshot: AccessibilityService.ScreenshotResult) {
+                        runCatching {
+                            val buffer = screenshot.hardwareBuffer
+                            try {
+                                val bitmap = Bitmap.wrapHardwareBuffer(buffer, screenshot.colorSpace)
+                                val copia = bitmap?.copy(Bitmap.Config.ARGB_8888, false)
+
+                                if (copia == null) {
+                                    capturando = false
+                                    DiagnosticLog.append(
+                                        this@OfferAccessibilityService,
+                                        "ocr_error",
+                                        listOf("bitmap null")
+                                    )
+                                    return
+                                }
+
+                                cliente.reconocer(
+                                    copia,
+                                    { lineas ->
+                                        copia.recycle()
+                                        capturando = false
+                                        if (lineas.isNotEmpty()) {
+                                            DiagnosticLog.append(
+                                                this@OfferAccessibilityService,
+                                                "ocr_textos",
+                                                lineas
+                                            )
+                                            evaluar(lineas, origen = "ocr")
+                                        }
+                                    },
+                                    { error ->
+                                        copia.recycle()
+                                        capturando = false
+                                        DiagnosticLog.append(
+                                            this@OfferAccessibilityService,
+                                            "ocr_error",
+                                            listOf(error.javaClass.simpleName, error.message ?: "")
+                                        )
+                                    }
+                                )
+                            } finally {
+                                buffer.close()
+                            }
+                        }.onFailure { error ->
+                            capturando = false
+                            DiagnosticLog.append(
+                                this@OfferAccessibilityService,
+                                "ocr_error",
+                                listOf(error.javaClass.simpleName, error.message ?: "")
+                            )
+                        }
+                    }
+
+                    override fun onFailure(errorCode: Int) {
+                        capturando = false
+                        DiagnosticLog.append(
+                            this@OfferAccessibilityService,
+                            "ocr_fallo",
+                            listOf("codigo=$errorCode")
+                        )
+                    }
+                }
+            )
+        }.onFailure { error ->
+            capturando = false
+            DiagnosticLog.append(
+                this,
+                "ocr_error",
+                listOf(error.javaClass.simpleName, error.message ?: "")
+            )
         }
     }
 

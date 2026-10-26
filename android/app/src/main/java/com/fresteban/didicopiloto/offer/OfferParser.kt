@@ -13,7 +13,7 @@ import java.util.Locale
  */
 object OfferParser {
 
-    private val PRECIO_REGEX = Regex("""\$\s*([\d.]+)""")
+    private val PRECIO_REGEX = Regex("""\$\s*([\d.,]+)""")
     private val TRAMO_REGEX = Regex("""(\d+)\s*min\s*\(\s*([\d.,]+)\s*km\s*\)""", RegexOption.IGNORE_CASE)
     private val PRECIO_PARTIDO_REGEX = Regex("""(\d)\.\s+(\d{3})""")
     private val ESPACIOS_RAROS = Regex("""[\u00A0\u202F]""")
@@ -30,7 +30,10 @@ object OfferParser {
         val crudo = normalizar(textos)
 
         val montos = PRECIO_REGEX.findAll(crudo).mapNotNull { match ->
-            val valor = match.groupValues[1].replace(".", "").toLongOrNull()
+            val valor = match.groupValues[1]
+                .replace(".", "")
+                .replace(",", "")
+                .toLongOrNull()
             if (valor == null) null else match.range.first to valor
         }.toList()
 

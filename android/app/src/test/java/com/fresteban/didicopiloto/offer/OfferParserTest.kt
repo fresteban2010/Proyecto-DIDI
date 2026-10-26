@@ -82,6 +82,33 @@ class OfferParserTest {
     }
 
     @Test
+    fun `parsea texto tipico de OCR`() {
+        val offer = OfferParser.parse(
+            listOf(
+                "Efectivo",
+                "$ 16.206",
+                "8 min (1,9 km)",
+                "Calle 68a #86a-17, Engativá",
+                "35 min (11.2 km)",
+                "Aceptar"
+            )
+        )
+
+        assertEquals(16_206L, offer?.precioCOP)
+        assertEquals(1.9, offer?.kmRecogida ?: 0.0, 0.001)
+        assertEquals(11.2, offer?.kmViaje ?: 0.0, 0.001)
+    }
+
+    @Test
+    fun `acepta separador de miles con coma`() {
+        val offer = OfferParser.parse(
+            listOf("$16,206", "8 min (1,9 km)", "35 min (11,2 km)")
+        )
+
+        assertEquals(16_206L, offer?.precioCOP)
+    }
+
+    @Test
     fun `ignora un ETA del mapa anterior al precio`() {
         val offer = OfferParser.parse(
             listOf(

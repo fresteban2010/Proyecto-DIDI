@@ -99,6 +99,8 @@ class OfferOverlay(private val service: AccessibilityService) {
         view = null
     }
 
+    fun estaVisible(): Boolean = view != null
+
     private fun dp(valor: Int): Int =
         (valor * service.resources.displayMetrics.density).toInt()
 
