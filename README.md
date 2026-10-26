@@ -104,6 +104,7 @@ App nativa complementaria en `android/` que lee la oferta de DiDi Conductor y mu
 - Requiere activar **Accesibilidad** una vez (Android 13+: “Permitir ajustes restringidos”).
 - El botón **Registrar** abre esta PWA con `?registrar=1&precio=...` y el modal de carrera precargado.
 - Todo ocurre en el teléfono; no hay backend ni telemetría.
+- **Descarga:** <https://github.com/Fresteban2010/Proyecto-DIDI/releases> (`didi-copiloto.apk`).
 - Detalles e instalación: [`android/README.md`](android/README.md).
 
 ### 8. PWA y modo offline
@@ -301,3 +302,5 @@ La aplicación fue validada con pruebas automatizadas de navegador (Playwright h
 - Layout verificado en móvil (390×664 y 390×844) y escritorio (1280×800 y 1440×900) sin desbordes horizontales.
 - PWA: `manifest.json`, iconos y `sw.js` responden **200** bajo `/Proyecto-DIDI/`, el Service Worker llega a `activated` y la caché `didi-tracker-v10` queda poblada.
 - Rediseño móvil validado: cabecera no fija, botón `Registrar` central en la barra inferior y controles de audio/jornada accesibles desde Ajustes.
+- **Copiloto Android:** 24 tests unitarios (parser, motor, ajustes, detector y puente), CI con compilación del APK y release firmado con clave estable de sideload.
+- **Deep link del copiloto:** `?registrar=1` abre el modal detallado con los datos de la oferta, rechaza valores inválidos y no permite registrar en una jornada cerrada.
