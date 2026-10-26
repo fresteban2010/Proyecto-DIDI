@@ -28,6 +28,21 @@ class SettingsRepositoryTest {
     }
 
     @Test
+    fun `una configuracion corrupta vuelve a los valores por defecto`() {
+        val store = MapStore().apply {
+            putInt(SettingsRepository.KEY_META_HORA, 0)
+            putInt(SettingsRepository.KEY_META_KM, -1)
+            putFloat(SettingsRepository.KEY_RENDIMIENTO, 0f)
+        }
+
+        val config = SettingsRepository(store).load()
+
+        assertEquals(30_000, config.metaCopHora)
+        assertEquals(2_000, config.metaCopKm)
+        assertEquals(40.0, config.rendimientoKmGalon, 0.001)
+    }
+
+    @Test
     fun `guarda y relee la configuracion`() {
         val repo = SettingsRepository(MapStore())
         val original = MetaConfig(

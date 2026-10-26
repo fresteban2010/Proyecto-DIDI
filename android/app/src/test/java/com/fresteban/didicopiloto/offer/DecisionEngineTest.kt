@@ -62,6 +62,17 @@ class DecisionEngineTest {
     }
 
     @Test
+    fun `una configuracion invalida no produce un verde falso`() {
+        val decision = DecisionEngine.evaluar(
+            ofertaReal,
+            MetaConfig(metaCopHora = 0, metaCopKm = 0, precioGalonCOP = 0, rendimientoKmGalon = 0.0)
+        )
+
+        assertEquals(Semaforo.ROJO, decision.semaforo)
+        assertEquals(5_240L, decision.gasolinaCOP)
+    }
+
+    @Test
     fun `amarillo cuando llega al ochenta por ciento de ambas metas`() {
         val decision = DecisionEngine.evaluar(
             Offer(precioCOP = 16_000, kmRecogida = 0.0, minRecogida = 0, kmViaje = 10.0, minViaje = 40),

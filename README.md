@@ -116,7 +116,7 @@ App nativa complementaria en `android/` que lee la oferta de DiDi Conductor y mu
 - **Instalar en Android (Chrome):** abrir la URL → menú **⋮** → **Instalar aplicación** (o usar el banner/botón *Instalar* dentro de la app).
 - **Instalar en iPhone (Safari):** abrir la URL → botón **Compartir** → **Añadir a pantalla de inicio** → **Añadir**. En iOS no existe el instalador automático; la app muestra las instrucciones desde el botón *Instalar DIDI Pro* en Ajustes.
 - **UI de instalación:** captura `beforeinstallprompt` (muestra banner superior y tarjeta en Ajustes), maneja `appinstalled` (oculta la UI y avisa con un toast), detecta `display-mode: standalone` y oculta todo si ya está instalada. El cierre del banner se recuerda en `localStorage`.
-- **Service Worker** (`sw.js`, caché `didi-tracker-v9`):
+- **Service Worker** (`sw.js`, caché `didi-tracker-v10`):
   - Navegación: *Network-First* con fallback a caché.
   - Assets locales (`index.html`, CSS, JS, manifest raíz, logo, favicons e iconos any/maskable): *Stale-While-Revalidate*.
   - CDNs (Chart.js, Lucide, Google Fonts): *Cache-First*.
@@ -190,7 +190,7 @@ Proyecto DIDI/
 │   ├── db.js                   # Capa IndexedDB (DidiTrackerDB v1)
 │   └── app.js                  # Estado, cálculos, render, audio, reportes y CRUD
 ├── manifest.json               # Manifest PWA (raíz, rutas relativas)
-├── sw.js                       # Service Worker (offline, caché v9)
+├── sw.js                       # Service Worker (offline, caché v10)
 ├── .nojekyll                   # Evita el procesado de Jekyll en GitHub Pages
 ├── .github/workflows/android.yml  # CI: tests + APK del copiloto
 ├── android/                    # App nativa DIDI Copiloto (Kotlin)
@@ -299,5 +299,5 @@ La aplicación fue validada con pruebas automatizadas de navegador (Playwright h
 - Persistencia real en IndexedDB entre recargas y sesiones, incluida la migración desde `localStorage`.
 - Flujos E2E: registro rápido, calculadora → carrera, lavado/aceite, cierre de turno, nueva jornada, reportes y franjas horarias.
 - Layout verificado en móvil (390×664 y 390×844) y escritorio (1280×800 y 1440×900) sin desbordes horizontales.
-- PWA: `manifest.json`, iconos y `sw.js` responden **200** bajo `/Proyecto-DIDI/`, el Service Worker llega a `activated` y la caché `didi-tracker-v9` queda poblada.
+- PWA: `manifest.json`, iconos y `sw.js` responden **200** bajo `/Proyecto-DIDI/`, el Service Worker llega a `activated` y la caché `didi-tracker-v10` queda poblada.
 - Rediseño móvil validado: cabecera no fija, botón `Registrar` central en la barra inferior y controles de audio/jornada accesibles desde Ajustes.

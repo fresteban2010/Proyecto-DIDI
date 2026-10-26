@@ -6,6 +6,7 @@ import android.service.notification.StatusBarNotification
 import com.fresteban.didicopiloto.diag.DiagnosticLog
 import com.fresteban.didicopiloto.offer.OfferAccessibilityService
 import com.fresteban.didicopiloto.offer.OfferBus
+import com.fresteban.didicopiloto.offer.OfferDetector
 
 class OfferNotificationListener : NotificationListenerService() {
 
@@ -23,6 +24,7 @@ class OfferNotificationListener : NotificationListenerService() {
         ).filter { it.isNotBlank() }.distinct()
 
         if (textos.isEmpty()) return
+        if (!OfferDetector.pareceOferta(textos)) return
 
         DiagnosticLog.append(this, "notificacion", textos)
         OfferBus.publish(textos)

@@ -7,18 +7,25 @@ import com.fresteban.didicopiloto.offer.Decision
 import com.fresteban.didicopiloto.offer.Offer
 import org.json.JSONObject
 import java.io.File
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 /**
  * Registro local de ofertas y notificaciones para calibrar el parser.
  * Nunca sale del teléfono salvo que el usuario lo comparta a mano.
+ * La escritura ocurre fuera del hilo principal y el archivo rota a los 2 MB.
  */
 object DiagnosticLog {
 
+    private const val CARPETA = "diagnostico"
     private const val ARCHIVO = "diagnostico.jsonl"
+    private const val MAX_BYTES = 2L * 1024 * 1024
 
-    fun archivo(context: Context): File = File(context.filesDir, ARCHIVO)
+    private val escritor = Executors.newSingleThreadExecutor()
 
-    @Synchronized
+    fun archivo(context: Context): File =
+        File(File(context.applicationContext.filesDir, CARPETA), ARCHIVO)
+
     fun append(
         context: Context,
         tipo: String,
@@ -26,6 +33,7 @@ object DiagnosticLog {
         offer: Offer? = null,
         decision: Decision? = null
     ) {
+        val appContext = context.applicationContext
         val json = JSONObject()
             .put("ts", System.currentTimeMillis())
             .put("tipo", tipo)
@@ -46,12 +54,29 @@ object DiagnosticLog {
             json.put("frase", it.frase)
         }
 
-        runCatching {
-            archivo(context).appendText(json.toString() + "\n")
+        escritor.execute {
+            synchronized(this) {
+                runCatching {
+                    val file = archivo(appContext)
+                    file.parentFile?.mkdirs()
+                    if (file.length() > MAX_BYTES) {
+                        val viejo = File(file.parentFile, "$ARCHIVO.1")
+                        viejo.delete()
+                        file.renameTo(viejo)
+                    }
+                    file.appendText(json.toString() + "\n")
+                }
+            }
         }
     }
 
+    /** Espera a que se vacíen las escrituras pendientes antes de compartir. */
+    fun flush() {
+        runCatching { escritor.submit { }.get(1, TimeUnit.SECONDS) }
+    }
+
     fun shareIntent(context: Context): Intent? {
+        flush()
         val file = archivo(context)
         if (!file.exists() || file.length() == 0L) return null
 
@@ -70,6 +95,13 @@ object DiagnosticLog {
     }
 
     fun clear(context: Context) {
-        runCatching { archivo(context).delete() }
+        escritor.execute {
+            synchronized(this) {
+                runCatching {
+                    archivo(context).delete()
+                    File(archivo(context).parentFile, "$ARCHIVO.1").delete()
+                }
+            }
+        }
     }
 }

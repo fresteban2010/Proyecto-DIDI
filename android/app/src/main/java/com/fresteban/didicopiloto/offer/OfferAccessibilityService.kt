@@ -4,6 +4,7 @@ import android.accessibilityservice.AccessibilityService
 import android.graphics.Rect
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import com.fresteban.didicopiloto.bridge.PwaBridge
@@ -15,6 +16,7 @@ class OfferAccessibilityService : AccessibilityService() {
 
     companion object {
         const val DIDI_PACKAGE = "com.didiglobal.driver"
+
         @Volatile
         var conectado: Boolean = false
             private set
@@ -25,6 +27,7 @@ class OfferAccessibilityService : AccessibilityService() {
     private var evaluacionPendiente: Runnable? = null
     private var ultimoHash: String = ""
     private var ultimoHashAt: Long = 0L
+    private var ultimoEventoAt: Long = 0L
 
     private val escuchaNotificaciones: (List<String>) -> Unit = { textos ->
         evaluar(textos, origen = "notificacion")
@@ -33,6 +36,7 @@ class OfferAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         conectado = true
+        overlay?.hide()
         overlay = OfferOverlay(this)
         OfferBus.subscribe(escuchaNotificaciones)
     }
@@ -56,36 +60,38 @@ class OfferAccessibilityService : AccessibilityService() {
         val paquete = event.packageName?.toString() ?: return
         val clase = event.className?.toString() ?: ""
 
-        if (!esPaqueteRelevante(paquete, clase)) {
-            if (paquete != DIDI_PACKAGE && paquete != packageName) overlay?.hide()
+        // Ahora recibimos eventos de todas las apps para poder ocultar la tarjeta
+        // al salir de DiDi. El filtro real se hace aquí, antes de recorrer el árbol.
+        if (paquete != DIDI_PACKAGE && paquete != packageName) {
+            overlay?.hide()
             return
         }
+        if (paquete == packageName && !clase.contains("MockOfferActivity")) return
+
+        val ahora = SystemClock.uptimeMillis()
+        if (ahora - ultimoEventoAt < 150) return
+        ultimoEventoAt = ahora
 
         val root = rootInActiveWindow ?: return
+        if (root.packageName?.toString() != paquete) return
+
         val nodos = mutableListOf<Pair<Int, String>>()
         recolectar(root, nodos)
         if (nodos.isEmpty()) return
 
         val textos = nodos.sortedBy { it.first }.map { it.second }
-        if (!pareceOferta(textos)) return
+
+        if (!OfferDetector.pareceOferta(textos)) {
+            if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+                overlay?.hide()
+            }
+            return
+        }
 
         evaluacionPendiente?.let { handler.removeCallbacks(it) }
         val tarea = Runnable { evaluar(textos, origen = "pantalla") }
         evaluacionPendiente = tarea
         handler.postDelayed(tarea, 200)
-    }
-
-    private fun esPaqueteRelevante(paquete: String, clase: String): Boolean {
-        if (paquete == DIDI_PACKAGE) return true
-        return paquete == packageName && clase.contains("MockOfferActivity")
-    }
-
-    private fun pareceOferta(textos: List<String>): Boolean {
-        val unido = textos.joinToString(" ").lowercase()
-        return unido.contains("aceptar") &&
-            unido.contains("$") &&
-            unido.contains("min") &&
-            unido.contains("km")
     }
 
     private fun recolectar(
@@ -94,15 +100,17 @@ class OfferAccessibilityService : AccessibilityService() {
     ) {
         if (nodo == null) return
 
-        val texto = listOfNotNull(
-            nodo.text?.toString()?.trim()?.takeIf { it.isNotEmpty() },
-            nodo.contentDescription?.toString()?.trim()?.takeIf { it.isNotEmpty() }
-        ).distinct().joinToString(" ")
+        if (nodo.isVisibleToUser) {
+            val texto = listOfNotNull(
+                nodo.text?.toString()?.trim()?.takeIf { it.isNotEmpty() },
+                nodo.contentDescription?.toString()?.trim()?.takeIf { it.isNotEmpty() }
+            ).distinct().joinToString(" ")
 
-        if (texto.isNotEmpty()) {
-            val rect = Rect()
-            nodo.getBoundsInScreen(rect)
-            salida.add(rect.top to texto)
+            if (texto.isNotEmpty()) {
+                val rect = Rect()
+                nodo.getBoundsInScreen(rect)
+                salida.add(rect.top to texto)
+            }
         }
 
         for (i in 0 until nodo.childCount) {
@@ -111,6 +119,12 @@ class OfferAccessibilityService : AccessibilityService() {
     }
 
     private fun evaluar(textos: List<String>, origen: String) {
+        // Una notificación vieja no debe pintar una tarjeta si DiDi no está abierto.
+        if (origen == "notificacion") {
+            val enPantalla = rootInActiveWindow?.packageName?.toString()
+            if (enPantalla != null && enPantalla != DIDI_PACKAGE) return
+        }
+
         val config = SettingsRepository(SharedPrefsStore(this)).load()
         val offer = OfferParser.parse(textos)
 
@@ -121,7 +135,7 @@ class OfferAccessibilityService : AccessibilityService() {
 
         val hash = "${offer.precioCOP}|${offer.kmRecogida}|${offer.minRecogida}|${offer.kmViaje}|${offer.minViaje}"
         val ahora = System.currentTimeMillis()
-        if (hash == ultimoHash && ahora - ultimoHashAt < 8_000) return
+        if (hash == ultimoHash && ahora - ultimoHashAt < 30_000) return
         ultimoHash = hash
         ultimoHashAt = ahora
 
@@ -129,7 +143,7 @@ class OfferAccessibilityService : AccessibilityService() {
         DiagnosticLog.append(this, "oferta:$origen", textos, offer, decision)
 
         overlay?.show(offer, decision) {
-            PwaBridge.open(this, offer)
+            PwaBridge.open(this, offer, config.viajeIncluyeRecogida)
         }
     }
 }

@@ -9,21 +9,31 @@ import java.util.Locale
 
 object PwaBridge {
 
-    fun open(context: Context, offer: Offer) {
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(buildUrl(offer))).apply {
+    fun open(context: Context, offer: Offer, viajeIncluyeRecogida: Boolean = false) {
+        val intent = Intent(
+            Intent.ACTION_VIEW,
+            Uri.parse(buildUrl(offer, viajeIncluyeRecogida = viajeIncluyeRecogida))
+        ).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         runCatching { context.startActivity(intent) }
     }
 
-    fun buildUrl(offer: Offer, baseUrl: String = BuildConfig.PWA_BASE_URL): String {
+    fun buildUrl(
+        offer: Offer,
+        baseUrl: String = BuildConfig.PWA_BASE_URL,
+        viajeIncluyeRecogida: Boolean = false
+    ): String {
         val base = baseUrl.trimEnd('/')
+        // Si DiDi ya cuenta la recogida dentro del tiempo del viaje, la PWA
+        // debe recibir 0 minutos de recogida para no sumarlos dos veces.
+        val minRecogida = if (viajeIncluyeRecogida) 0 else offer.minRecogida
         return buildString {
             append(base)
             append("/?registrar=1")
             append("&precio=").append(offer.precioCOP)
             append("&kmRecogida=").append(numero(offer.kmRecogida))
-            append("&minRecogida=").append(offer.minRecogida)
+            append("&minRecogida=").append(minRecogida)
             append("&kmViaje=").append(numero(offer.kmViaje))
             append("&minViaje=").append(offer.minViaje)
             append("&metodo=").append(offer.metodoPago)

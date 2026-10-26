@@ -10,6 +10,8 @@
 
 **Spec:** `docs/superpowers/specs/2026-10-26-asistente-ofertas-didi-design.md`
 
+> **Estado de ejecución (2026-10-26):** implementado en la rama `feat/android-copiloto`; 24 tests unitarios en verde; CI y release `android-v0.1.1` publicados. Pendiente: calibración con ofertas reales y prueba del overlay en el teléfono.
+
 ## Global Constraints
 
 - Paquete: `com.fresteban.didicopiloto`. `minSdk 26`, `compileSdk 35`, `targetSdk 35`.
@@ -195,7 +197,8 @@
 - Produces: APK `app-debug.apk` como artifact y APK firmado en GitHub Releases al etiquetar.
 
 - [ ] **Step 1:** Documentar instalación sideload, “Permitir ajustes restringidos” (Android 13+), accesibilidad y batería.
-- [ ] **Step 2:** Configurar release con keystore desde secrets (`ANDROID_KEYSTORE_BASE64`, alias, passwords).
+- [x] **Step 2:** Configurar release con keystore desde secrets (`ANDROID_KEYSTORE_BASE64`, alias, passwords).
+  > **Ruling:** se usa un keystore de sideload estable en el repo (`app/didi-sideload.keystore`) en lugar de secrets, para que las actualizaciones se instalen encima sin desinstalar. No sirve para Play Store.
 - [ ] **Step 3:** Generar el primer tag `android-v0.1.0` y verificar la descarga del APK.
 - [ ] **Step 4:** Commit `docs(android): instalación sideload y release`.
 

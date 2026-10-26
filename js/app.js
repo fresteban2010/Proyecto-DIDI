@@ -1325,6 +1325,10 @@ function cerrarModalViaje() {
 function guardarViajeDesdeFormulario(evento) {
   evento.preventDefault();
 
+  // Defensa en profundidad: una jornada cerrada es inmutable, incluso si el
+  // modal se abrió desde un enlace externo (copiloto Android).
+  if (!jornadaActivaParaEdicion()) return;
+
   const idExistente = document.getElementById('viaje-id')?.value?.trim();
   let distRecogidaKm;
   let tiempoRecogidaMin;
@@ -3272,24 +3276,29 @@ function leerParametrosRegistro() {
     return;
   }
 
-  abrirModalViaje();
-  aplicarModoFormularioViaje('detallado');
+  // La jornada cerrada es inmutable: pedir una nueva antes de precargar.
+  asegurarJornadaActiva().then(activo => {
+    if (!activo) return;
 
-  const set = (id, valor) => {
-    const campo = document.getElementById(id);
-    if (campo) campo.value = valor;
-  };
-  set('distRecogidaKm', kmRecogida);
-  set('tiempoRecogidaMin', minRecogida);
-  set('distEntregaKm', kmViaje);
-  set('tiempoEntregaMin', minViaje);
-  set('precioCOP', precio);
+    abrirModalViaje();
+    aplicarModoFormularioViaje('detallado');
 
-  const radio = document.querySelector(`input[name="metodoPago"][value="${metodo}"]`);
-  if (radio) radio.checked = true;
+    const set = (id, valor) => {
+      const campo = document.getElementById(id);
+      if (campo) campo.value = valor;
+    };
+    set('distRecogidaKm', kmRecogida);
+    set('tiempoRecogidaMin', minRecogida);
+    set('distEntregaKm', kmViaje);
+    set('tiempoEntregaMin', minViaje);
+    set('precioCOP', precio);
 
-  const precioInput = document.getElementById('precioCOP');
-  if (precioInput) setTimeout(() => precioInput.focus(), 80);
+    const radio = document.querySelector(`input[name="metodoPago"][value="${metodo}"]`);
+    if (radio) radio.checked = true;
+
+    const precioInput = document.getElementById('precioCOP');
+    if (precioInput) setTimeout(() => precioInput.focus(), 80);
+  });
 }
 
 document.addEventListener('DOMContentLoaded', async () => {

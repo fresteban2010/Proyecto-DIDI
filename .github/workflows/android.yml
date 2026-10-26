@@ -63,30 +63,30 @@ jobs:
       - name: Tests unitarios
         run: ./gradlew :app:testDebugUnitTest --console=plain
 
-      - name: Compilar APK debug
-        run: ./gradlew :app:assembleDebug --console=plain
+      - name: Compilar APK release
+        run: ./gradlew :app:assembleRelease --console=plain
 
       - name: Renombrar APK
         run: |
           mkdir -p dist
-          cp app/build/outputs/apk/debug/app-debug.apk dist/didi-copiloto-debug.apk
+          cp app/build/outputs/apk/release/app-release.apk dist/didi-copiloto.apk
 
       - uses: actions/upload-artifact@v4
         with:
-          name: didi-copiloto-debug
-          path: android/dist/didi-copiloto-debug.apk
+          name: didi-copiloto
+          path: android/dist/didi-copiloto.apk
           if-no-files-found: error
 
       - name: Publicar release si es tag android-v*
         if: startsWith(github.ref, 'refs/tags/android-v')
         uses: softprops/action-gh-release@v2
         with:
-          files: android/dist/didi-copiloto-debug.apk
+          files: android/dist/didi-copiloto.apk
           name: DIDI Copiloto ${{ github.ref_name }}
           body: |
             APK de DIDI Copiloto para instalar por sideload.
 
-            1. Descarga `didi-copiloto-debug.apk`.
+            1. Descarga `didi-copiloto.apk`.
             2. Permite instalar desde esta fuente.
             3. Abre la app y activa la accesibilidad.
             4. En Android 13+: Ajustes → Apps → DIDI Copiloto → ⋮ → Permitir ajustes restringidos.

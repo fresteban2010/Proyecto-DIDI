@@ -17,8 +17,23 @@ android {
         buildConfigField("String", "PWA_BASE_URL", "\"https://fresteban2010.github.io/Proyecto-DIDI/\"")
     }
 
+    signingConfigs {
+        // Clave estable para sideload: permite actualizar el APK sin desinstalar.
+        // No es una clave de Play Store; el keystore vive en el repo a propósito.
+        create("sideload") {
+            storeFile = file("didi-sideload.keystore")
+            storePassword = "didi-copiloto"
+            keyAlias = "didi-copiloto"
+            keyPassword = "didi-copiloto"
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("sideload")
+        }
         release {
+            signingConfig = signingConfigs.getByName("sideload")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

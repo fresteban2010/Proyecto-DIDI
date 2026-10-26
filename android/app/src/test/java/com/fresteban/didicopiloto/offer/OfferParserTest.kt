@@ -23,7 +23,9 @@ class OfferParserTest {
 
     @Test
     fun `parsea la oferta real de la captura`() {
-        val offer = assertNotNull(OfferParser.parse(ofertaReal)).let { OfferParser.parse(ofertaReal)!! }
+        val offer = OfferParser.parse(ofertaReal)
+        assertNotNull(offer)
+        requireNotNull(offer)
 
         assertEquals(16_206L, offer.precioCOP)
         assertEquals(1.9, offer.kmRecogida, 0.001)
@@ -58,6 +60,54 @@ class OfferParserTest {
         )
 
         assertEquals("tarjeta", offer?.metodoPago)
+    }
+
+    @Test
+    fun `si aparecen ambos metodos no asume tarjeta`() {
+        val offer = OfferParser.parse(
+            listOf("Efectivo", "Tarjeta", "$10.000", "4 min (1,0 km)", "12 min (5,0 km)")
+        )
+
+        assertEquals("efectivo", offer?.metodoPago)
+    }
+
+    @Test
+    fun `tolera espacios duros en los tramos`() {
+        val offer = OfferParser.parse(
+            listOf("$16.206", "8\u00A0min\u00A0(1,9\u00A0km)", "35\u00A0min\u00A0(11,2 km)")
+        )
+
+        assertEquals(1.9, offer?.kmRecogida ?: 0.0, 0.001)
+        assertEquals(11.2, offer?.kmViaje ?: 0.0, 0.001)
+    }
+
+    @Test
+    fun `ignora un ETA del mapa anterior al precio`() {
+        val offer = OfferParser.parse(
+            listOf(
+                "12 min (4,3 km)",
+                "$16.206",
+                "8 min (1,9 km)",
+                "35 min (11,2 km)"
+            )
+        )
+
+        assertEquals(8, offer?.minRecogida)
+        assertEquals(35, offer?.minViaje)
+    }
+
+    @Test
+    fun `prioriza el monto junto a la etiqueta total`() {
+        val offer = OfferParser.parse(
+            listOf(
+                "$20.000 propina estimada",
+                "Total $16.206",
+                "8 min (1,9 km)",
+                "35 min (11,2 km)"
+            )
+        )
+
+        assertEquals(16_206L, offer?.precioCOP)
     }
 
     @Test

@@ -24,13 +24,17 @@ class SharedPrefsStore(context: Context) : KeyValueStore {
 
 class SettingsRepository(private val store: KeyValueStore) {
 
-    fun load(): MetaConfig = MetaConfig(
-        metaCopHora = store.getInt(KEY_META_HORA, 30_000),
-        metaCopKm = store.getInt(KEY_META_KM, 2_000),
-        precioGalonCOP = store.getInt(KEY_GALON, 16_000),
-        rendimientoKmGalon = store.getFloat(KEY_RENDIMIENTO, 40f).toDouble(),
-        viajeIncluyeRecogida = store.getBoolean(KEY_RECOGIDA, false)
-    )
+    fun load(): MetaConfig {
+        val config = MetaConfig(
+            metaCopHora = store.getInt(KEY_META_HORA, 30_000),
+            metaCopKm = store.getInt(KEY_META_KM, 2_000),
+            precioGalonCOP = store.getInt(KEY_GALON, 16_000),
+            rendimientoKmGalon = store.getFloat(KEY_RENDIMIENTO, 40f).toDouble(),
+            viajeIncluyeRecogida = store.getBoolean(KEY_RECOGIDA, false)
+        )
+        // Un valor corrupto (0, negativo) no debe volver todo verde ni dividir por cero.
+        return config.takeIf { it.esValida() } ?: MetaConfig()
+    }
 
     fun save(config: MetaConfig) {
         store.putInt(KEY_META_HORA, config.metaCopHora)

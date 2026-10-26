@@ -19,8 +19,10 @@ data class Decision(
 object DecisionEngine {
 
     fun evaluar(offer: Offer, config: MetaConfig): Decision {
+        val cfg = if (config.esValida()) config else MetaConfig()
+
         val kmTotal = offer.kmRecogida + offer.kmViaje
-        val minTotal = if (config.viajeIncluyeRecogida) {
+        val minTotal = if (cfg.viajeIncluyeRecogida) {
             offer.minViaje
         } else {
             offer.minRecogida + offer.minViaje
@@ -29,12 +31,12 @@ object DecisionEngine {
         val copKm = if (kmTotal > 0.0) offer.precioCOP / kmTotal else 0.0
         val copHora = if (minTotal > 0) offer.precioCOP * 60.0 / minTotal else 0.0
 
-        val costoKm = config.precioGalonCOP / config.rendimientoKmGalon
+        val costoKm = cfg.precioGalonCOP / cfg.rendimientoKmGalon
         val gasolina = (kmTotal * costoKm).toLong()
         val neto = offer.precioCOP - gasolina
 
-        val semaforo = cuando(copHora, copKm, config)
-        val frase = frase(offer, kmTotal, minTotal, copKm, copHora, semaforo, config)
+        val semaforo = cuando(copHora, copKm, cfg)
+        val frase = frase(offer, kmTotal, minTotal, copKm, copHora, semaforo, cfg)
 
         return Decision(
             kmTotal = kmTotal,

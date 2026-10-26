@@ -14,7 +14,7 @@ Se instala por **sideload** (APK). No requiere Play Store, cuenta, servidor ni i
 
 ## Instalación
 
-1. Descarga `didi-copiloto-debug.apk` desde **Actions → Android APK** o desde **Releases**.
+1. Descarga `didi-copiloto.apk` desde **Actions → Android APK** o desde **Releases**.
 2. En el teléfono, abre el APK y permite instalar desde esa fuente.
 3. Abre **DIDI Copiloto**.
 4. Pulsa **Activar accesibilidad** y enciende el interruptor de DIDI Copiloto.
@@ -59,11 +59,15 @@ El log incluye los textos crudos, los campos parseados y el resultado del motor.
 # Requiere JDK 17 y Android SDK 35
 cd android
 ./gradlew :app:testDebugUnitTest
-./gradlew :app:assembleDebug
-# APK: app/build/outputs/apk/debug/app-debug.apk
+./gradlew :app:assembleRelease
+# APK firmado: app/build/outputs/apk/release/app-release.apk
 ```
 
 En GitHub Actions, el workflow `.github/workflows/android.yml` ejecuta los tests y publica el APK como artifact. Al empujar un tag `android-v*` se crea un Release con el APK.
+
+**Firma:** el APK se firma con `app/didi-sideload.keystore`, una clave estable guardada en el repo **solo para sideload** (no sirve para Play Store). Así las actualizaciones se instalan encima sin desinstalar. No cambies ese keystore: si se pierde, las versiones futuras no podrán actualizar la app instalada.
+
+> La primera versión pública (`android-v0.1.0`) se firmó con una clave de debug temporal. Si la instalaste, desinstálala antes de instalar la versión con clave estable.
 
 ## Privacidad
 
