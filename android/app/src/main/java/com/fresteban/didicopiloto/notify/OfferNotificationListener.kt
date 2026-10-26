@@ -24,9 +24,9 @@ class OfferNotificationListener : NotificationListenerService() {
         ).filter { it.isNotBlank() }.distinct()
 
         if (textos.isEmpty()) return
-        if (!OfferDetector.pareceOferta(textos)) return
 
-        DiagnosticLog.append(this, "notificacion", textos)
+        DiagnosticLog.append(this, "notificacion_didi", textos)
+        if (!OfferDetector.pareceOferta(textos)) return
         OfferBus.publish(textos)
     }
 }

@@ -7,6 +7,7 @@ import android.os.Looper
 import android.os.SystemClock
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import android.view.accessibility.AccessibilityWindowInfo
 import com.fresteban.didicopiloto.bridge.PwaBridge
 import com.fresteban.didicopiloto.data.SettingsRepository
 import com.fresteban.didicopiloto.data.SharedPrefsStore
@@ -75,29 +76,50 @@ class OfferAccessibilityService : AccessibilityService() {
         if (ahora - ultimoEventoAt < 150) return
         ultimoEventoAt = ahora
 
-        val root = rootInActiveWindow
-        if (root == null) {
-            if (paquete == DIDI_PACKAGE) {
-                diagnosticarVentana(
-                    listOf("root_in_active_window = null", "clase=$clase"),
-                    clase,
-                    event.eventType
-                )
-            }
-            return
+        val textos = mutableListOf<String>()
+        val ventanas = mutableListOf<String>()
+
+        // 1. Texto que trae el propio evento (a veces existe aunque el árbol esté vacío).
+        event.text?.forEach { valor ->
+            valor?.toString()?.takeIf { it.isNotBlank() }?.let { textos.add(it) }
         }
-        if (root.packageName?.toString() != paquete) return
+        event.contentDescription?.toString()?.takeIf { it.isNotBlank() }?.let { textos.add(it) }
 
-        val nodos = mutableListOf<Pair<Int, String>>()
-        recolectar(root, nodos)
+        // 2. Árbol de la ventana activa, incluyendo nodos marcados como invisibles.
+        val root = rootInActiveWindow
+        if (root != null && root.packageName?.toString() == paquete) {
+            val nodos = mutableListOf<Pair<Int, String>>()
+            recolectar(root, nodos, incluirInvisibles = true)
+            textos.addAll(nodos.sortedBy { it.first }.map { it.second })
+            ventanas.add("activa=${root.className}:${nodos.size}")
+        }
 
-        val textos = nodos.sortedBy { it.first }.map { it.second }
+        // 3. Todas las ventanas interactivas de DiDi (diálogos y overlays incluidos).
+        if (paquete == DIDI_PACKAGE) {
+            runCatching {
+                windows?.forEach { ventana: AccessibilityWindowInfo ->
+                    val raiz = ventana.root ?: return@forEach
+                    if (raiz.packageName?.toString() != DIDI_PACKAGE) return@forEach
+                    val nodos = mutableListOf<Pair<Int, String>>()
+                    recolectar(raiz, nodos, incluirInvisibles = true)
+                    ventanas.add("win=${ventana.type}:${raiz.className}:${nodos.size}")
+                    textos.addAll(nodos.sortedBy { it.first }.map { it.second })
+                }
+            }
+        }
+
+        val unicos = textos.distinct()
 
         if (paquete == DIDI_PACKAGE) {
-            diagnosticarVentana(textos, clase, event.eventType)
+            diagnosticarVentana(
+                unicos,
+                clase,
+                event.eventType,
+                ventanas = ventanas
+            )
         }
 
-        if (!OfferDetector.pareceOferta(textos)) {
+        if (!OfferDetector.pareceOferta(unicos)) {
             if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
                 overlay?.hide()
             }
@@ -105,7 +127,7 @@ class OfferAccessibilityService : AccessibilityService() {
         }
 
         evaluacionPendiente?.let { handler.removeCallbacks(it) }
-        val tarea = Runnable { evaluar(textos, origen = "pantalla") }
+        val tarea = Runnable { evaluar(unicos, origen = "pantalla") }
         evaluacionPendiente = tarea
         handler.postDelayed(tarea, 200)
     }
@@ -114,30 +136,33 @@ class OfferAccessibilityService : AccessibilityService() {
      * Guarda una foto de la ventana de DiDi para saber si el servicio la ve y
      * qué textos expone. Es temporal: sirve para calibrar el parser.
      */
-    private fun diagnosticarVentana(textos: List<String>, clase: String, tipo: Int) {
+    private fun diagnosticarVentana(
+        textos: List<String>,
+        clase: String,
+        tipo: Int,
+        ventanas: List<String>
+    ) {
         val ahora = SystemClock.uptimeMillis()
-        if (ahora - ultimoDiagAt < 2_000) return
-
-        val unido = textos.joinToString(" ").lowercase()
-        val interesante = tipo == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED ||
-            unido.contains("aceptar") ||
-            unido.contains("$") ||
-            unido.contains("min") ||
-            unido.contains("km")
-        if (!interesante) return
-
+        if (ahora - ultimoDiagAt < 1_000) return
         ultimoDiagAt = ahora
-        val cabecera = listOf("clase=$clase", "tipo=$tipo", "nodos=${textos.size}")
-        DiagnosticLog.append(this, "didi_ventana", cabecera + textos.take(120))
+
+        val cabecera = listOf(
+            "clase=$clase",
+            "tipo=$tipo",
+            "nodos=${textos.size}",
+            "ventanas=${ventanas.joinToString(",")}"
+        )
+        DiagnosticLog.append(this, "didi_ventana", cabecera + textos.take(150))
     }
 
     private fun recolectar(
         nodo: AccessibilityNodeInfo?,
-        salida: MutableList<Pair<Int, String>>
+        salida: MutableList<Pair<Int, String>>,
+        incluirInvisibles: Boolean = false
     ) {
         if (nodo == null) return
 
-        if (nodo.isVisibleToUser) {
+        if (incluirInvisibles || nodo.isVisibleToUser) {
             val texto = listOfNotNull(
                 nodo.text?.toString()?.trim()?.takeIf { it.isNotEmpty() },
                 nodo.contentDescription?.toString()?.trim()?.takeIf { it.isNotEmpty() }
@@ -151,7 +176,7 @@ class OfferAccessibilityService : AccessibilityService() {
         }
 
         for (i in 0 until nodo.childCount) {
-            recolectar(nodo.getChild(i), salida)
+            recolectar(nodo.getChild(i), salida, incluirInvisibles)
         }
     }
 
