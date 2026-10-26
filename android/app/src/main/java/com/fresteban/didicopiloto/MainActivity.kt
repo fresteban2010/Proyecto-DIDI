@@ -60,9 +60,6 @@ class MainActivity : AppCompatActivity() {
         binding.tvEstado.setTextColor(
             ContextCompat.getColor(this, if (activo) R.color.green else R.color.red)
         )
-        binding.btnAccesibilidad.text = getString(
-            if (activo) R.string.btn_settings else R.string.btn_accessibility
-        )
     }
 
     private fun accesibilidadActiva(): Boolean {
