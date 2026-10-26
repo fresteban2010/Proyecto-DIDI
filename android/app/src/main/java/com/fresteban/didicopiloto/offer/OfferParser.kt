@@ -14,7 +14,10 @@ import java.util.Locale
 object OfferParser {
 
     private val PRECIO_REGEX = Regex("""\$\s*([\d.,]+)""")
-    private val TRAMO_REGEX = Regex("""(\d+)\s*min\s*\(\s*([\d.,]+)\s*km\s*\)""", RegexOption.IGNORE_CASE)
+    private val TRAMO_REGEX = Regex(
+        """(\d+)\s*min\s*\(\s*([\d.,]+)\s*(km|m)\s*\)""",
+        RegexOption.IGNORE_CASE
+    )
     private val PRECIO_PARTIDO_REGEX = Regex("""(\d)\.\s+(\d{3})""")
     private val ESPACIOS_RAROS = Regex("""[\u00A0\u202F]""")
     private val ESPACIOS = Regex("""\s+""")
@@ -46,7 +49,13 @@ object OfferParser {
         val desde = (seleccionado.first + 1).coerceAtMost(crudo.length)
         val tramos = TRAMO_REGEX.findAll(crudo.substring(desde)).mapNotNull { match ->
             val minutos = match.groupValues[1].toIntOrNull()
-            val km = match.groupValues[2].replace(",", ".").toDoubleOrNull()
+            val valor = match.groupValues[2].replace(",", ".").toDoubleOrNull()
+            val unidad = match.groupValues[3].lowercase()
+            val km = when {
+                valor == null -> null
+                unidad == "m" -> valor / 1_000.0
+                else -> valor
+            }
             if (minutos == null || km == null) null else minutos to km
         }.toList()
 

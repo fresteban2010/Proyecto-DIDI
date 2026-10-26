@@ -198,6 +198,8 @@ class OfferAccessibilityService : AccessibilityService() {
      */
     private fun intentarOcr(tipoEvento: Int) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
+        // No capturar nuestra propia app ni una pantalla que ya no es DiDi.
+        if (rootInActiveWindow?.packageName?.toString() != DIDI_PACKAGE) return
         if (tipoEvento != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED &&
             tipoEvento != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
         ) {

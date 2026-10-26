@@ -82,6 +82,26 @@ class OfferParserTest {
     }
 
     @Test
+    fun `convierte la recogida en metros a kilometros`() {
+        val offer = OfferParser.parse(
+            listOf(
+                "Pago con tarjeta",
+                "$16.003",
+                "5 min (753 m)",
+                "Travessa 93 #65a-99, Engativá",
+                "44 min (10,2 km)",
+                "Aceptar"
+            )
+        )
+
+        assertEquals(16_003L, offer?.precioCOP)
+        assertEquals(0.753, offer?.kmRecogida ?: 0.0, 0.0001)
+        assertEquals(10.2, offer?.kmViaje ?: 0.0, 0.001)
+        assertEquals(5, offer?.minRecogida)
+        assertEquals(44, offer?.minViaje)
+    }
+
+    @Test
     fun `parsea texto tipico de OCR`() {
         val offer = OfferParser.parse(
             listOf(
