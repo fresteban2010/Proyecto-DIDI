@@ -47,11 +47,20 @@ La tarjeta se oculta sola a los 12 segundos y no tapa el botón `Aceptar` de DiD
 
 En la pantalla principal pulsa **Probar con oferta de ejemplo**. Se abre una tarjeta con los mismos textos de una oferta real (`$16.206`, `8 min (1,9 km)`, `35 min (11,2 km)`) y el overlay debe aparecer en la franja superior.
 
+## Realme / OPPO (Realme UI)
+
+Además de **Quitar restricción de batería**:
+
+1. Ajustes → Batería → **Consumo de batería de apps** → DIDI Copiloto → **Permitir actividad en segundo plano**.
+2. Ajustes → Apps → DIDI Copiloto → **Inicio automático** → permitir.
+3. En **Recientes**, desliza DIDI Copiloto hacia abajo y pulsa el **candado** para fijarla.
+4. La **Función rápida** de accesibilidad **no hace falta**; puedes dejarla desactivada.
+
 ## Diagnóstico
 
 Cada oferta leída se guarda en `filesDir/diagnostico.jsonl` (solo en el teléfono). El botón **Compartir diagnóstico** abre el menú de compartir para enviar el archivo. Sirve para calibrar el parser cuando DiDi cambie el formato.
 
-El log incluye los textos crudos, los campos parseados y el resultado del motor. No se envía nada automáticamente.
+El log incluye los textos crudos, los campos parseados y el resultado del motor. En la versión 0.1.2 también registra `servicio_conectado`, `servicio_desconectado`, `didi_ventana` (lo que expone la pantalla de DiDi) y `overlay_error`. No se envía nada automáticamente.
 
 ## Compilar
 

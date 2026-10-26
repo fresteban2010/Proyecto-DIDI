@@ -84,6 +84,12 @@ class OfferOverlay(private val service: AccessibilityService) {
             windowManager.addView(card, params)
             view = card
             handler.postDelayed(ocultar, 12_000)
+        }.onFailure { error ->
+            com.fresteban.didicopiloto.diag.DiagnosticLog.append(
+                service,
+                "overlay_error",
+                listOf(error.javaClass.simpleName, error.message ?: "sin mensaje")
+            )
         }
     }
 

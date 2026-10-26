@@ -28,6 +28,7 @@ class OfferAccessibilityService : AccessibilityService() {
     private var ultimoHash: String = ""
     private var ultimoHashAt: Long = 0L
     private var ultimoEventoAt: Long = 0L
+    private var ultimoDiagAt: Long = 0L
 
     private val escuchaNotificaciones: (List<String>) -> Unit = { textos ->
         evaluar(textos, origen = "notificacion")
@@ -39,10 +40,12 @@ class OfferAccessibilityService : AccessibilityService() {
         overlay?.hide()
         overlay = OfferOverlay(this)
         OfferBus.subscribe(escuchaNotificaciones)
+        DiagnosticLog.append(this, "servicio_conectado", listOf("accesibilidad conectada"))
     }
 
     override fun onDestroy() {
         conectado = false
+        DiagnosticLog.append(this, "servicio_desconectado", listOf("accesibilidad destruida"))
         OfferBus.unsubscribe(escuchaNotificaciones)
         evaluacionPendiente?.let { handler.removeCallbacks(it) }
         overlay?.hide()
@@ -72,14 +75,27 @@ class OfferAccessibilityService : AccessibilityService() {
         if (ahora - ultimoEventoAt < 150) return
         ultimoEventoAt = ahora
 
-        val root = rootInActiveWindow ?: return
+        val root = rootInActiveWindow
+        if (root == null) {
+            if (paquete == DIDI_PACKAGE) {
+                diagnosticarVentana(
+                    listOf("root_in_active_window = null", "clase=$clase"),
+                    clase,
+                    event.eventType
+                )
+            }
+            return
+        }
         if (root.packageName?.toString() != paquete) return
 
         val nodos = mutableListOf<Pair<Int, String>>()
         recolectar(root, nodos)
-        if (nodos.isEmpty()) return
 
         val textos = nodos.sortedBy { it.first }.map { it.second }
+
+        if (paquete == DIDI_PACKAGE) {
+            diagnosticarVentana(textos, clase, event.eventType)
+        }
 
         if (!OfferDetector.pareceOferta(textos)) {
             if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
@@ -92,6 +108,27 @@ class OfferAccessibilityService : AccessibilityService() {
         val tarea = Runnable { evaluar(textos, origen = "pantalla") }
         evaluacionPendiente = tarea
         handler.postDelayed(tarea, 200)
+    }
+
+    /**
+     * Guarda una foto de la ventana de DiDi para saber si el servicio la ve y
+     * qué textos expone. Es temporal: sirve para calibrar el parser.
+     */
+    private fun diagnosticarVentana(textos: List<String>, clase: String, tipo: Int) {
+        val ahora = SystemClock.uptimeMillis()
+        if (ahora - ultimoDiagAt < 2_000) return
+
+        val unido = textos.joinToString(" ").lowercase()
+        val interesante = tipo == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED ||
+            unido.contains("aceptar") ||
+            unido.contains("$") ||
+            unido.contains("min") ||
+            unido.contains("km")
+        if (!interesante) return
+
+        ultimoDiagAt = ahora
+        val cabecera = listOf("clase=$clase", "tipo=$tipo", "nodos=${textos.size}")
+        DiagnosticLog.append(this, "didi_ventana", cabecera + textos.take(120))
     }
 
     private fun recolectar(
