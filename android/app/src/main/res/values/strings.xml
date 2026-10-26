@@ -1,0 +1,39 @@
+<resources>
+    <string name="app_name">DIDI Copiloto</string>
+
+    <string name="accessibility_service_label">DIDI Copiloto — lector de ofertas</string>
+    <string name="accessibility_service_description">Lee la oferta de DiDi Conductor para calcular si la carrera conviene. Solo aconseja: nunca acepta ni rechaza viajes.</string>
+    <string name="notification_listener_label">DIDI Copiloto — notificaciones</string>
+
+    <string name="subtitle">Te dice si la oferta de DiDi te conviene, antes de aceptar.</string>
+
+    <string name="status_active">Asistente activo. Abre DiDi y espera una oferta.</string>
+    <string name="status_inactive">Asistente apagado. Activa la accesibilidad para empezar.</string>
+
+    <string name="btn_accessibility">Activar accesibilidad</string>
+    <string name="btn_notifications">Activar acceso a notificaciones</string>
+    <string name="btn_battery">Quitar restricción de batería</string>
+    <string name="btn_settings">Metas y costos</string>
+    <string name="btn_mock">Probar con oferta de ejemplo</string>
+    <string name="btn_share_diag">Compartir diagnóstico</string>
+
+    <string name="how_title">Cómo funciona</string>
+    <string name="how_body">1. Activa la accesibilidad una sola vez.\n2. Abre DiDi Conductor y espera una oferta.\n3. El copiloto lee precio, recogida y viaje, calcula COP/km y COP/h, y muestra el semáforo arriba.\n4. Si aceptas, pulsa Registrar para abrir DIDI Pro con los datos listos.\n\nLa app no acepta ni rechaza viajes. Todo se queda en tu teléfono.</string>
+
+    <string name="settings_title">Metas y costos</string>
+    <string name="settings_meta_hora">Meta COP/hora</string>
+    <string name="settings_meta_km">Meta COP/km</string>
+    <string name="settings_galon">Precio del galón (COP)</string>
+    <string name="settings_rendimiento">Rendimiento (km/galón)</string>
+    <string name="settings_recogida">El tiempo del viaje ya incluye la recogida</string>
+    <string name="settings_save">Guardar</string>
+    <string name="settings_saved">Ajustes guardados</string>
+    <string name="settings_invalid">Revisa los valores: deben ser mayores que cero.</string>
+
+    <string name="mock_note">Pantalla de prueba. El overlay debe aparecer arriba y no tapar Aceptar.</string>
+    <string name="mock_accept">Aceptar</string>
+
+    <string name="overlay_register">Registrar</string>
+    <string name="overlay_ignore">Ignorar</string>
+    <string name="overlay_close">Cerrar</string>
+</resources>

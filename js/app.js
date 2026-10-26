@@ -3244,6 +3244,54 @@ function registrarServiceWorker() {
   });
 }
 
+// Registro desde el copiloto Android: ?registrar=1&precio=...&kmRecogida=...
+// Abre el modal detallado con los datos de la oferta ya cargados.
+function leerParametrosRegistro() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('registrar') !== '1') return;
+
+  const precio = Number(params.get('precio'));
+  const kmRecogida = Number(params.get('kmRecogida'));
+  const minRecogida = Number(params.get('minRecogida'));
+  const kmViaje = Number(params.get('kmViaje'));
+  const minViaje = Number(params.get('minViaje'));
+  const metodo = (params.get('metodo') || 'efectivo').toLowerCase() === 'tarjeta' ? 'tarjeta' : 'efectivo';
+
+  const valido =
+    Number.isFinite(precio) && precio >= 1000 && precio <= 200000 &&
+    Number.isFinite(kmRecogida) && kmRecogida >= 0 && kmRecogida <= 100 &&
+    Number.isFinite(minRecogida) && minRecogida >= 0 && minRecogida <= 180 &&
+    Number.isFinite(kmViaje) && kmViaje > 0 && kmViaje <= 100 &&
+    Number.isFinite(minViaje) && minViaje > 0 && minViaje <= 180;
+
+  // La URL no debe quedar con datos personales en el historial.
+  history.replaceState({}, '', window.location.pathname);
+
+  if (!valido) {
+    showToast('La oferta no trae datos válidos para registrar.', 'warning');
+    return;
+  }
+
+  abrirModalViaje();
+  aplicarModoFormularioViaje('detallado');
+
+  const set = (id, valor) => {
+    const campo = document.getElementById(id);
+    if (campo) campo.value = valor;
+  };
+  set('distRecogidaKm', kmRecogida);
+  set('tiempoRecogidaMin', minRecogida);
+  set('distEntregaKm', kmViaje);
+  set('tiempoEntregaMin', minViaje);
+  set('precioCOP', precio);
+
+  const radio = document.querySelector(`input[name="metodoPago"][value="${metodo}"]`);
+  if (radio) radio.checked = true;
+
+  const precioInput = document.getElementById('precioCOP');
+  if (precioInput) setTimeout(() => precioInput.focus(), 80);
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   await cargarDatos();
   configurarEventListeners();
@@ -3265,6 +3313,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const botonVista = document.querySelector(`.nav-item[data-view="${vistaSolicitada}"]`);
     if (botonVista) botonVista.click();
   }
+
+  // Registro precargado desde el copiloto Android.
+  leerParametrosRegistro();
 
   // Desbloqueo del AudioContext en el primer gesto real del usuario
   ['pointerdown', 'keydown'].forEach(evento => {
