@@ -8,7 +8,7 @@ Su objetivo es auditar la rentabilidad real de cada carrera y de cada jornada me
 
 ## Estado del proyecto
 
-Las cinco fases del plan de mejoras están implementadas:
+Las siete fases del plan de mejoras están implementadas y desplegadas:
 
 | Fase | Contenido | Estado |
 | :--- | :--- | :---: |
@@ -17,10 +17,22 @@ Las cinco fases del plan de mejoras están implementadas:
 | 3 | **IndexedDB local-first**, migración y **respaldo JSON tipo Drive** | ✅ |
 | 4 | **Modo Rápido**, **audio sintético** y **calculadora pre-viaje** | ✅ |
 | 5 | **Cierre de turno**, **costos ocultos** y **analítica multi-jornada** | ✅ |
+| 6 | **Identidad de marca** (logo tacómetro vintage 80s) y **sistema de animaciones** | ✅ |
+| 7 | **PWA instalable** (manifest raíz, iconos maskable, pantallas, atajos) y **GitHub Pages** | ✅ |
+
+**URL canónica:** <https://fresteban2010.github.io/Proyecto-DIDI/> (repositorio público `Fresteban2010/Proyecto-DIDI`, GitHub Pages desde `main`).
 
 ---
 
 ## Funcionalidades
+
+### 0. Navegación y ergonomía móvil
+
+- **Barra inferior de 5 ítems:** `Turno`, `Calculadora`, **`Registrar`** (botón circular central elevado), `Historial` y `Ajustes`.
+- **Acción principal siempre a un pulgar:** el botón `Registrar` abre el modal de carrera desde cualquier vista, sin volver al dashboard.
+- **Cabecera no fija en móvil** (`< 960px`): se desplaza con el contenido para ganar altura útil; el audio y el reinicio de jornada siguen accesibles en **Ajustes → Controles del turno**.
+- **Escritorio (≥ 960px):** la barra inferior se transforma en un **sidebar vertical de 88 px** y la cabecera vuelve a ser sticky (con `safe-area-inset-top` en iOS standalone).
+- **Deep links:** `?view=turno|calculadora|historial|ajustes` abre directamente la pestaña indicada (usado por los atajos del manifest).
 
 ### 1. Turno Activo (Dashboard)
 
@@ -63,7 +75,7 @@ Sin archivos MP3: osciladores senoidales con envolvente anti-clic.
 | 🔴 No rentable | Grave descendente `330 → 220 Hz` | 200 ms |
 
 - El `AudioContext` se desbloquea con el **primer gesto real** del usuario.
-- Interruptor **Audio** en la cabecera (silenciar/activar), persistido en la configuración.
+- Interruptor **Audio** en la cabecera y en **Ajustes → Controles del turno** (silenciar/activar), persistido en la configuración.
 
 ### 5. Historial y reportes
 
@@ -79,21 +91,27 @@ Sin archivos MP3: osciladores senoidales con envolvente anti-clic.
   - En PC con Chromium usa **File System Access API** (elegir carpeta).
   - Fallback universal: descarga `didi_backup_YYYY-MM-DD.json`.
 - **Restauración** con validación de integridad del respaldo (secciones y versión de esquema).
+- **Controles del turno:** botones de audio (silenciar/activar) y de iniciar/reiniciar jornada, duplicados en Ajustes para cuando la cabecera queda fuera de pantalla en móvil.
+- **Instalar aplicación:** tarjeta con estado de instalación y botón que lanza el prompt nativo (Android/Chromium) o abre las instrucciones paso a paso (iOS).
 - **Estadísticas de almacenamiento:** jornadas, viajes, tanqueadas y gastos.
 - **Costos configurables:** costo sugerido del aceite (por defecto `$200.000`) e intervalo de aceite (por defecto `5.000 km`).
 
 ### 7. PWA y modo offline
 
-- **URL publicada:** https://fresteban2010.github.io/Proyecto-DIDI/
-- Instalable en Android/iOS/escritorio (`manifest.json`, iconos 192/512 `any` + `maskable`, capturas, atajos y `display: standalone`).
+- **URL publicada:** <https://fresteban2010.github.io/Proyecto-DIDI/> (HTTPS, GitHub Pages desde `main`).
+- **Manifest en la raíz** (`manifest.json`) con rutas relativas: `id`, `start_url`, `scope`, `display: standalone` + `display_override`, `orientation: portrait`, `lang: es-CO`, tema `#FF6600` y fondo `#0B0F19`.
+- **Iconos:** 192/512 `any` + 192/512 `maskable` (zona segura Android), `apple-touch-icon` y favicons.
+- **Capturas** `narrow` (390×844) y `wide` (1280×800) para el diálogo de instalación enriquecido de Chrome.
+- **Atajos de app:** Turno, Calculadora e Historial abren la vista correspondiente mediante `?view=`.
 - **Instalar en Android (Chrome):** abrir la URL → menú **⋮** → **Instalar aplicación** (o usar el banner/botón *Instalar* dentro de la app).
 - **Instalar en iPhone (Safari):** abrir la URL → botón **Compartir** → **Añadir a pantalla de inicio** → **Añadir**. En iOS no existe el instalador automático; la app muestra las instrucciones desde el botón *Instalar DIDI Pro* en Ajustes.
-- La app detecta si ya está instalada (`display-mode: standalone`) y oculta el aviso de instalación.
-- **Service Worker** (`sw.js`, caché `didi-tracker-v6`):
+- **UI de instalación:** captura `beforeinstallprompt` (muestra banner superior y tarjeta en Ajustes), maneja `appinstalled` (oculta la UI y avisa con un toast), detecta `display-mode: standalone` y oculta todo si ya está instalada. El cierre del banner se recuerda en `localStorage`.
+- **Service Worker** (`sw.js`, caché `didi-tracker-v8`):
   - Navegación: *Network-First* con fallback a caché.
-  - Assets locales (`index.html`, CSS, JS, iconos): *Stale-While-Revalidate*.
+  - Assets locales (`index.html`, CSS, JS, manifest raíz, logo, favicons e iconos any/maskable): *Stale-While-Revalidate*.
   - CDNs (Chart.js, Lucide, Google Fonts): *Cache-First*.
 - Recarga automática al activarse una nueva versión del Service Worker (evita mezclar assets viejos con lógica nueva).
+- **GitHub Pages:** `.nojekyll` en la raíz para servir los assets sin procesado de Jekyll.
 
 ---
 
@@ -162,7 +180,8 @@ Proyecto DIDI/
 │   ├── db.js                   # Capa IndexedDB (DidiTrackerDB v1)
 │   └── app.js                  # Estado, cálculos, render, audio, reportes y CRUD
 ├── manifest.json               # Manifest PWA (raíz, rutas relativas)
-├── sw.js                       # Service Worker (offline, caché v6)
+├── sw.js                       # Service Worker (offline, caché v8)
+├── .nojekyll                   # Evita el procesado de Jekyll en GitHub Pages
 ├── assets/
 │   ├── brand/
 │   │   └── logo-tacometro-2k.png
@@ -179,7 +198,10 @@ Proyecto DIDI/
 │       ├── pwa-icon-512.png
 │       ├── pwa-icon-192-maskable.png
 │       └── pwa-icon-512-maskable.png
-├── plan de ejecucion arreglos.txt   # Plan de las 5 fases
+├── docs/
+│   └── superpowers/
+│       └── plans/              # Planes de logo/animaciones y PWA instalable
+├── plan de ejecucion arreglos.txt   # Plan de las 5 fases base
 ├── PLAN_EXECUCION_GIT.md
 └── README.md
 ```
@@ -262,4 +284,6 @@ La aplicación fue validada con pruebas automatizadas de navegador (Playwright h
 - Carga limpia: **0 excepciones, 0 errores de consola, 0 respuestas HTTP ≥ 400 y 0 diálogos nativos**.
 - Persistencia real en IndexedDB entre recargas y sesiones, incluida la migración desde `localStorage`.
 - Flujos E2E: registro rápido, calculadora → carrera, lavado/aceite, cierre de turno, nueva jornada, reportes y franjas horarias.
-- Layout verificado en móvil (390×664) y escritorio (1440×900) sin desbordes horizontales.
+- Layout verificado en móvil (390×664 y 390×844) y escritorio (1280×800 y 1440×900) sin desbordes horizontales.
+- PWA: `manifest.json`, iconos y `sw.js` responden **200** bajo `/Proyecto-DIDI/`, el Service Worker llega a `activated` y la caché `didi-tracker-v8` queda poblada.
+- Rediseño móvil validado: cabecera no fija, botón `Registrar` central en la barra inferior y controles de audio/jornada accesibles desde Ajustes.

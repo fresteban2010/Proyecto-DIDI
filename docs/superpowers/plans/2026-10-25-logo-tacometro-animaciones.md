@@ -2,6 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **Estado:** ✅ completado e integrado en `main` (commit `1246026`).
+
 **Goal:** Reemplazar el isotipo SVG por un logo de tacómetro vintage (PNG 2K) y añadir un sistema de animaciones pulidas en toda la PWA.
 
 **Architecture:** El logo maestro 2K vive en `assets/brand/` y se derivan versiones optimizadas para header e iconos PWA con PIL. Las animaciones se implementan con CSS (keyframes + clases utilitarias) y pequeños helpers en `app.js` (transición direccional de vistas, contadores animados, disparo del “shake” al registrar). Todo respeta `prefers-reduced-motion`.
@@ -42,33 +44,33 @@
 **Interfaces:**
 - Produces: `assets/icons/logo-tacometro.png` (256×256) para el header.
 
-- [ ] **Step 1:** Copiar el PNG 2K original a `assets/brand/logo-tacometro-2k.png` y generar con PIL las versiones 256, 192, 180, 32 y 16 px (LANCZOS).
-- [ ] **Step 2:** Sustituir el SVG inline del header por `<img src="assets/icons/logo-tacometro.png" alt="DIDI Tracker">` y ajustar `.brand-logo` a `overflow:hidden`.
-- [ ] **Step 3:** Actualizar `BRAND_LOGO_SVG` a un `<img>` y `renderLogoMarca()` para no sobrescribirlo.
-- [ ] **Step 4:** Subir `SW_CACHE` a `didi-tracker-v5` y añadir el nuevo logo a `LOCAL_ASSETS`.
-- [ ] **Step 5:** Verificar carga sin errores y commit.
+- [x] **Step 1:** Copiar el PNG 2K original a `assets/brand/logo-tacometro-2k.png` y generar con PIL las versiones 256, 192, 180, 32 y 16 px (LANCZOS).
+- [x] **Step 2:** Sustituir el SVG inline del header por `<img src="assets/icons/logo-tacometro.png" alt="DIDI Tracker">` y ajustar `.brand-logo` a `overflow:hidden`.
+- [x] **Step 3:** Actualizar `BRAND_LOGO_SVG` a un `<img>` y `renderLogoMarca()` para no sobrescribirlo.
+- [x] **Step 4:** Subir `SW_CACHE` a `didi-tracker-v5` y añadir el nuevo logo a `LOCAL_ASSETS`.
+- [x] **Step 5:** Verificar carga sin errores y commit.
 
 ### Task 2: Sistema de animaciones CSS
 
 **Files:**
 - Modify: `css/styles.css` (bloque final de animaciones)
 
-- [ ] **Step 1:** Añadir keyframes: `viewSlideLeft`, `viewSlideRight`, `modalPop`, `ctaPulse`, `trafficGlow`, `shakeGauge`, `toastInTop`.
-- [ ] **Step 2:** Aplicar transiciones a botones, tarjetas, semáforo, barra de progreso y `modal-content`.
-- [ ] **Step 3:** Añadir bloque `@media (prefers-reduced-motion: reduce)` que desactive animaciones.
+- [x] **Step 1:** Añadir keyframes: `viewSlideLeft`, `viewSlideRight`, `modalPop`, `ctaPulse`, `trafficGlow`, `shakeGauge`, `toastInTop`.
+- [x] **Step 2:** Aplicar transiciones a botones, tarjetas, semáforo, barra de progreso y `modal-content`.
+- [x] **Step 3:** Añadir bloque `@media (prefers-reduced-motion: reduce)` que desactive animaciones.
 
 ### Task 3: Lógica de animación en JS
 
 **Files:**
 - Modify: `js/app.js`
 
-- [ ] **Step 1:** `inicializarNavegacion()`: calcular dirección por índice y añadir `view-slide-left|right` al panel visible.
-- [ ] **Step 2:** Helper `animarContadoresDashboard()` con rAF + easing, invocado al final de `renderDashboard()`.
-- [ ] **Step 3:** Configurar `Chart.defaults.animation` (700 ms, `easeOutQuart`).
-- [ ] **Step 4:** Añadir `dispararShakeTacometro()` en `guardarViajeDesdeFormulario()` tras registrar.
+- [x] **Step 1:** `inicializarNavegacion()`: calcular dirección por índice y añadir `view-slide-left|right` al panel visible.
+- [x] **Step 2:** Helper `animarContadoresDashboard()` con rAF + easing, invocado al final de `renderDashboard()`.
+- [x] **Step 3:** Configurar `Chart.defaults.animation` (700 ms, `easeOutQuart`).
+- [x] **Step 4:** Añadir `dispararShakeTacometro()` en `guardarViajeDesdeFormulario()` tras registrar.
 
 ### Task 4: Verificación y sincronización
 
-- [ ] **Step 1:** Servir con `python3 -m http.server 8080` y auditar con `probar_pagina_web`.
-- [ ] **Step 2:** Captura de pantalla en móvil y escritorio.
-- [ ] **Step 3:** Commit y push con `sincronizar_proyecto`.
+- [x] **Step 1:** Servir con `python3 -m http.server 8080` y auditar con `probar_pagina_web`.
+- [x] **Step 2:** Captura de pantalla en móvil y escritorio.
+- [x] **Step 3:** Commit y push con `sincronizar_proyecto`.
