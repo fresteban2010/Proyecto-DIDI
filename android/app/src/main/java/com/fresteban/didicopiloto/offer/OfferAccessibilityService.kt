@@ -1,11 +1,13 @@
 package com.fresteban.didicopiloto.offer
 
 import android.accessibilityservice.AccessibilityService
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Rect
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.os.SystemClock
 import android.view.Display
 import android.view.accessibility.AccessibilityEvent
@@ -38,6 +40,32 @@ class OfferAccessibilityService : AccessibilityService() {
     private var ocr: OfferOcr? = null
     private var capturando: Boolean = false
     private var ultimaCapturaAt: Long = 0L
+    private var ocrPendiente: Boolean = false
+
+    /**
+     * DiDi no emite eventos cuando aparece la tarjeta de oferta, así que un
+     * disparo solo por eventos deja huecos. Mientras DiDi está en primer plano
+     * se muestrea la pantalla cada 2 s para no perder ofertas.
+     */
+    private val bucleOcr = object : Runnable {
+        override fun run() {
+            try {
+                if (conectado) {
+                    val power = getSystemService(Context.POWER_SERVICE) as PowerManager
+                    val enDidi =
+                        rootInActiveWindow?.packageName?.toString() == DIDI_PACKAGE
+                    if (power.isInteractive && enDidi) {
+                        intentarOcr(
+                            AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED,
+                            forzar = true
+                        )
+                    }
+                }
+            } finally {
+                handler.postDelayed(this, 2_000)
+            }
+        }
+    }
 
     private val escuchaNotificaciones: (List<String>) -> Unit = { textos ->
         evaluar(textos, origen = "notificacion")
@@ -50,6 +78,8 @@ class OfferAccessibilityService : AccessibilityService() {
         overlay = OfferOverlay(this)
         OfferNotifier.crearCanal(this)
         OfferBus.subscribe(escuchaNotificaciones)
+        handler.removeCallbacks(bucleOcr)
+        handler.postDelayed(bucleOcr, 1_200)
         DiagnosticLog.append(this, "servicio_conectado", listOf("accesibilidad conectada"))
     }
 
@@ -57,12 +87,14 @@ class OfferAccessibilityService : AccessibilityService() {
         conectado = false
         DiagnosticLog.append(this, "servicio_desconectado", listOf("accesibilidad destruida"))
         OfferBus.unsubscribe(escuchaNotificaciones)
+        handler.removeCallbacks(bucleOcr)
         evaluacionPendiente?.let { handler.removeCallbacks(it) }
         overlay?.hide()
         overlay = null
         ocr?.cerrar()
         ocr = null
         capturando = false
+        ocrPendiente = false
         super.onDestroy()
     }
 
@@ -85,7 +117,10 @@ class OfferAccessibilityService : AccessibilityService() {
         if (paquete == packageName && !clase.contains("MockOfferActivity")) return
 
         val ahora = SystemClock.uptimeMillis()
-        if (ahora - ultimoEventoAt < 150) return
+        val eventoDeVentana =
+            event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED ||
+                event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED
+        if (!eventoDeVentana && ahora - ultimoEventoAt < 150) return
         ultimoEventoAt = ahora
 
         val textos = mutableListOf<String>()
@@ -131,6 +166,13 @@ class OfferAccessibilityService : AccessibilityService() {
             )
             // DiDi no expone la oferta como nodos: se lee por OCR.
             intentarOcr(event.eventType)
+            if (eventoDeVentana) {
+                // La tarjeta puede aparecer con una animación; segundo intento.
+                handler.postDelayed(
+                    { intentarOcr(event.eventType, forzar = true) },
+                    350
+                )
+            }
         }
 
         if (!OfferDetector.pareceOferta(unicos)) {
@@ -198,21 +240,27 @@ class OfferAccessibilityService : AccessibilityService() {
      * Plan B: cuando DiDi no expone la oferta en accesibilidad, se toma una
      * captura de pantalla y se pasa por OCR on-device.
      */
-    private fun intentarOcr(tipoEvento: Int) {
+    private fun intentarOcr(tipoEvento: Int, forzar: Boolean = false) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
         // No capturar nuestra propia app ni una pantalla que ya no es DiDi.
         if (rootInActiveWindow?.packageName?.toString() != DIDI_PACKAGE) return
-        if (tipoEvento != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED &&
-            tipoEvento != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
-        ) {
+        val tipoValido =
+            tipoEvento == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED ||
+                tipoEvento == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED ||
+                tipoEvento == AccessibilityEvent.TYPE_WINDOWS_CHANGED
+        if (!tipoValido) return
+        if (capturando) {
+            // No perder el evento: se reintenta al terminar la captura actual.
+            ocrPendiente = true
             return
         }
-        if (capturando || overlay?.estaVisible() == true) return
+        if (overlay?.estaVisible() == true) return
 
         val ahora = SystemClock.uptimeMillis()
-        if (ahora - ultimaCapturaAt < 1_500) return
+        if (!forzar && ahora - ultimaCapturaAt < 1_500) return
         ultimaCapturaAt = ahora
         capturando = true
+        ocrPendiente = false
 
         val cliente = ocr ?: OfferOcr().also { ocr = it }
 
@@ -229,7 +277,7 @@ class OfferAccessibilityService : AccessibilityService() {
                                 val copia = bitmap?.copy(Bitmap.Config.ARGB_8888, false)
 
                                 if (copia == null) {
-                                    capturando = false
+                                    finalizarCaptura()
                                     DiagnosticLog.append(
                                         this@OfferAccessibilityService,
                                         "ocr_error",
@@ -242,7 +290,7 @@ class OfferAccessibilityService : AccessibilityService() {
                                     copia,
                                     { lineas ->
                                         copia.recycle()
-                                        capturando = false
+                                        finalizarCaptura()
                                         if (lineas.isNotEmpty()) {
                                             DiagnosticLog.append(
                                                 this@OfferAccessibilityService,
@@ -254,7 +302,7 @@ class OfferAccessibilityService : AccessibilityService() {
                                     },
                                     { error ->
                                         copia.recycle()
-                                        capturando = false
+                                        finalizarCaptura()
                                         DiagnosticLog.append(
                                             this@OfferAccessibilityService,
                                             "ocr_error",
@@ -266,7 +314,7 @@ class OfferAccessibilityService : AccessibilityService() {
                                 buffer.close()
                             }
                         }.onFailure { error ->
-                            capturando = false
+                            finalizarCaptura()
                             DiagnosticLog.append(
                                 this@OfferAccessibilityService,
                                 "ocr_error",
@@ -276,7 +324,7 @@ class OfferAccessibilityService : AccessibilityService() {
                     }
 
                     override fun onFailure(errorCode: Int) {
-                        capturando = false
+                        finalizarCaptura()
                         DiagnosticLog.append(
                             this@OfferAccessibilityService,
                             "ocr_fallo",
@@ -286,11 +334,23 @@ class OfferAccessibilityService : AccessibilityService() {
                 }
             )
         }.onFailure { error ->
-            capturando = false
+            finalizarCaptura()
             DiagnosticLog.append(
                 this,
                 "ocr_error",
                 listOf(error.javaClass.simpleName, error.message ?: "")
+            )
+        }
+    }
+
+    /** Libera la captura y reintenta si llegó un evento mientras se procesaba. */
+    private fun finalizarCaptura() {
+        capturando = false
+        if (ocrPendiente && conectado) {
+            ocrPendiente = false
+            handler.postDelayed(
+                { intentarOcr(AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED, forzar = true) },
+                150
             )
         }
     }

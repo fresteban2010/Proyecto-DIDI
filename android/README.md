@@ -91,6 +91,7 @@ En GitHub Actions, el workflow `.github/workflows/android.yml` ejecuta los tests
 
 ## Limitaciones
 
+- Mientras DiDi está en primer plano, el copiloto muestrea la pantalla cada 2 segundos para no perder ofertas que no generan eventos de accesibilidad. Es el precio de la fiabilidad; si notas consumo de batería, se puede subir el intervalo.
 - Si DiDi cambia el diseño de la oferta, hay que ajustar el parser (el log de diagnóstico lo hace rápido).
 - Algunos fabricantes (Xiaomi, Huawei, Samsung) matan servicios en segundo plano; hay que excluir la app de la optimización de batería.
 - No funciona en iPhone: iOS no permite leer la pantalla de otras apps.
