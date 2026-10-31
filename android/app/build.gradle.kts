@@ -11,8 +11,8 @@ android {
         applicationId = "com.fresteban.didicopiloto"
         minSdk = 26
         targetSdk = 35
-        versionCode = 9
-        versionName = "0.3.0"
+        versionCode = 10
+        versionName = "0.4.0"
 
         // El teléfono objetivo es arm64; evita empaquetar ML Kit para ABIs que no se usan.
         ndk {

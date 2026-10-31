@@ -41,13 +41,15 @@ La notificación se actualiza con cada oferta nueva (no se acumulan), se descart
 Cuando DiDi muestra la lista **Centro de solicitudes** con ofertas “Pon tu precio” que **no saltan**, el copiloto:
 
 - **No envía notificación** (para no confundirlas con una oferta activa).
-- Guarda una **captura de pantalla** de esa lista (máximo 50, sin duplicados).
-- La muestra en **MainActivity → Ofertas Pon tu precio (N)** como tarjeta con:
+- Guarda **cada oferta por separado** (máximo 50, sin duplicados): no mezcla dos tarjetas de la lista.
+- La muestra en **MainActivity → Ofertas Pon tu precio (N)** como tarjeta individual con:
   - Fecha y hora.
-  - Precios detectados.
-  - Tramos detectados (min · km).
+  - Precio.
+  - **Semáforo y análisis**: COP/km, COP/h y frase explicativa.
+  - Recogida y viaje (min · km).
   - Miniatura de la captura.
   - Botones **Ver** (captura completa), **Registrar** (abre DIDI Pro) y **Borrar**.
+- Si una captura no alcanza a mostrar los tramos, la oferta queda como **“Sin análisis”** y se completa cuando vuelve a capturarse con los datos.
 
 Las ofertas “Pon tu precio” que **sí saltan** como popup siguen generando notificación normal.
 

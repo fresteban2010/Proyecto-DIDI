@@ -382,6 +382,9 @@ class OfferAccessibilityService : AccessibilityService() {
         ultimaListaHash = hash
         ultimaListaAt = ahora
 
+        val ofertas = PonTuPrecioParser.ofertas(textos).filter { it.esPonTuPrecio }
+        if (ofertas.isEmpty()) return
+
         val carpeta = PonTuPrecioRepository.carpeta(this)
         val nombre = "captura_$ahora.jpg"
         val archivo = File(carpeta, nombre)
@@ -410,26 +413,59 @@ class OfferAccessibilityService : AccessibilityService() {
             }
             if (reducido !== bitmap) reducido.recycle()
 
-            val precios = PonTuPrecioParser.precios(textos)
-            val tramos = PonTuPrecioParser.tramos(textos)
+            val config = SettingsRepository(SharedPrefsStore(this)).load()
+            val nuevas = ofertas.map { lista ->
+                if (lista.completa) {
+                    val offer = Offer(
+                        precioCOP = lista.precio,
+                        kmRecogida = lista.kmRecogida ?: 0.0,
+                        minRecogida = lista.minRecogida ?: 0,
+                        kmViaje = lista.kmViaje ?: 0.0,
+                        minViaje = lista.minViaje ?: 0,
+                        metodoPago = "efectivo",
+                        crudo = lista.texto
+                    )
+                    val decision = DecisionEngine.evaluar(offer, config)
+                    CapturaPonTuPrecio(
+                        ts = ahora,
+                        imagen = nombre,
+                        precio = lista.precio,
+                        minRecogida = lista.minRecogida,
+                        kmRecogida = lista.kmRecogida,
+                        minViaje = lista.minViaje,
+                        kmViaje = lista.kmViaje,
+                        copKm = decision.copKm,
+                        copHora = decision.copHora,
+                        semaforo = decision.semaforo.name,
+                        frase = decision.frase,
+                        texto = lista.texto
+                    )
+                } else {
+                    CapturaPonTuPrecio(
+                        ts = ahora,
+                        imagen = nombre,
+                        precio = lista.precio,
+                        minRecogida = lista.minRecogida,
+                        kmRecogida = lista.kmRecogida,
+                        minViaje = lista.minViaje,
+                        kmViaje = lista.kmViaje,
+                        copKm = null,
+                        copHora = null,
+                        semaforo = null,
+                        frase = null,
+                        texto = lista.texto
+                    )
+                }
+            }
 
-            PonTuPrecioRepository.agregar(
-                this,
-                CapturaPonTuPrecio(
-                    ts = ahora,
-                    imagen = nombre,
-                    precios = precios,
-                    tramos = tramos,
-                    texto = unido.take(2_000)
-                )
-            )
+            PonTuPrecioRepository.agregar(this, nuevas)
 
             DiagnosticLog.append(
                 this,
                 "captura_pon_tu_precio",
                 listOf(
-                    "precios=${precios.joinToString(",")}",
-                    "tramos=${tramos.joinToString(";")}"
+                    "ofertas=${nuevas.size}",
+                    "precios=${nuevas.joinToString(",") { it.precio.toString() }}"
                 ) + textos.take(20)
             )
         }.onFailure { error ->
