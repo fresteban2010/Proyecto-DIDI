@@ -295,8 +295,9 @@ class OfferAccessibilityService : AccessibilityService() {
 
                                 cliente.reconocer(
                                     copia,
-                                    { lineas ->
-                                        if (lineas.isNotEmpty()) {
+                                    { lineasEstructuradas ->
+                                        if (lineasEstructuradas.isNotEmpty()) {
+                                            val lineas = lineasEstructuradas.map { it.texto }
                                             DiagnosticLog.append(
                                                 this@OfferAccessibilityService,
                                                 "ocr_textos",
@@ -306,7 +307,7 @@ class OfferAccessibilityService : AccessibilityService() {
                                                 PantallaOferta.esCentroDeSolicitudes(lineas) &&
                                                 PantallaOferta.esPonTuPrecio(lineas)
                                             ) {
-                                                guardarCapturaPonTuPrecio(copia, lineas)
+                                                guardarCapturaPonTuPrecio(copia, lineasEstructuradas)
                                             }
                                             evaluar(lineas, origen = "ocr")
                                         }
@@ -372,7 +373,8 @@ class OfferAccessibilityService : AccessibilityService() {
      * Guarda la captura de la lista "Centro de solicitudes" con Pon tu precio.
      * Estas ofertas no saltan y no deben generar notificación.
      */
-    private fun guardarCapturaPonTuPrecio(bitmap: Bitmap, textos: List<String>) {
+    private fun guardarCapturaPonTuPrecio(bitmap: Bitmap, lineasOcr: List<LineaOcr>) {
+        val textos = lineasOcr.map { it.texto }
         val unido = textos.joinToString(" | ")
         val hash = unido.hashCode().toString()
         val ahora = System.currentTimeMillis()
@@ -382,50 +384,76 @@ class OfferAccessibilityService : AccessibilityService() {
         ultimaListaHash = hash
         ultimaListaAt = ahora
 
-        val ofertas = PonTuPrecioParser.ofertas(textos).filter { it.esPonTuPrecio }
-        if (ofertas.isEmpty()) return
+        // Solo ofertas Pon tu precio con precio y los dos tramos completos.
+        val tarjetas = PonTuPrecioParser.tarjetas(lineasOcr)
+            .filter { it.oferta.esPonTuPrecio && it.oferta.completa }
+        if (tarjetas.isEmpty()) return
+
+        val existentes = PonTuPrecioRepository.listar(this)
+        val nuevasTarjetas = tarjetas.filter { tarjeta ->
+            existentes.none {
+                it.precio == tarjeta.oferta.precio &&
+                    it.completa &&
+                    kotlin.math.abs(it.ts - ahora) < 30 * 60 * 1000L
+            }
+        }
+        if (nuevasTarjetas.isEmpty()) return
 
         val carpeta = PonTuPrecioRepository.carpeta(this)
-        val nombre = "captura_$ahora.jpg"
-        val archivo = File(carpeta, nombre)
+        val config = SettingsRepository(SharedPrefsStore(this)).load()
+        val nuevas = mutableListOf<CapturaPonTuPrecio>()
 
-        runCatching {
-            val anchoMax = 720
-            val escala = if (bitmap.width > anchoMax) {
-                anchoMax.toFloat() / bitmap.width
-            } else {
-                1f
-            }
-            val reducido =
-                if (escala < 1f) {
-                    Bitmap.createScaledBitmap(
-                        bitmap,
-                        (bitmap.width * escala).toInt(),
-                        (bitmap.height * escala).toInt(),
-                        true
-                    )
+        nuevasTarjetas.forEachIndexed { indice, tarjeta ->
+            val nombre = "captura_${ahora}_${indice}_${tarjeta.oferta.precio}.jpg"
+            val archivo = File(carpeta, nombre)
+
+            runCatching {
+                val padding = 16
+                val left = (tarjeta.left - padding).coerceAtLeast(0)
+                val top = (tarjeta.top - padding).coerceAtLeast(0)
+                val right = (tarjeta.right + padding).coerceAtMost(bitmap.width)
+                val bottom = (tarjeta.bottom + padding).coerceAtMost(bitmap.height)
+                val ancho = (right - left).coerceAtLeast(1)
+                val alto = (bottom - top).coerceAtLeast(1)
+
+                val recorte = Bitmap.createBitmap(bitmap, left, top, ancho, alto)
+                val anchoMax = 720
+                val escala = if (recorte.width > anchoMax) {
+                    anchoMax.toFloat() / recorte.width
                 } else {
-                    bitmap
+                    1f
                 }
+                val guardado =
+                    if (escala < 1f) {
+                        Bitmap.createScaledBitmap(
+                            recorte,
+                            (recorte.width * escala).toInt(),
+                            (recorte.height * escala).toInt(),
+                            true
+                        )
+                    } else {
+                        recorte
+                    }
 
-            FileOutputStream(archivo).use { salida ->
-                reducido.compress(Bitmap.CompressFormat.JPEG, 82, salida)
-            }
-            if (reducido !== bitmap) reducido.recycle()
+                FileOutputStream(archivo).use { salida ->
+                    guardado.compress(Bitmap.CompressFormat.JPEG, 85, salida)
+                }
+                if (guardado !== recorte) guardado.recycle()
+                if (recorte !== bitmap) recorte.recycle()
 
-            val config = SettingsRepository(SharedPrefsStore(this)).load()
-            val nuevas = ofertas.map { lista ->
-                if (lista.completa) {
-                    val offer = Offer(
-                        precioCOP = lista.precio,
-                        kmRecogida = lista.kmRecogida ?: 0.0,
-                        minRecogida = lista.minRecogida ?: 0,
-                        kmViaje = lista.kmViaje ?: 0.0,
-                        minViaje = lista.minViaje ?: 0,
-                        metodoPago = "efectivo",
-                        crudo = lista.texto
-                    )
-                    val decision = DecisionEngine.evaluar(offer, config)
+                val lista = tarjeta.oferta
+                val offer = Offer(
+                    precioCOP = lista.precio,
+                    kmRecogida = lista.kmRecogida ?: 0.0,
+                    minRecogida = lista.minRecogida ?: 0,
+                    kmViaje = lista.kmViaje ?: 0.0,
+                    minViaje = lista.minViaje ?: 0,
+                    metodoPago = "efectivo",
+                    crudo = lista.texto
+                )
+                val decision = DecisionEngine.evaluar(offer, config)
+
+                nuevas.add(
                     CapturaPonTuPrecio(
                         ts = ahora,
                         imagen = nombre,
@@ -440,26 +468,19 @@ class OfferAccessibilityService : AccessibilityService() {
                         frase = decision.frase,
                         texto = lista.texto
                     )
-                } else {
-                    CapturaPonTuPrecio(
-                        ts = ahora,
-                        imagen = nombre,
-                        precio = lista.precio,
-                        minRecogida = lista.minRecogida,
-                        kmRecogida = lista.kmRecogida,
-                        minViaje = lista.minViaje,
-                        kmViaje = lista.kmViaje,
-                        copKm = null,
-                        copHora = null,
-                        semaforo = null,
-                        frase = null,
-                        texto = lista.texto
-                    )
-                }
+                )
+            }.onFailure { error ->
+                archivo.delete()
+                DiagnosticLog.append(
+                    this,
+                    "captura_error",
+                    listOf(error.javaClass.simpleName, error.message ?: "sin mensaje")
+                )
             }
+        }
 
+        if (nuevas.isNotEmpty()) {
             PonTuPrecioRepository.agregar(this, nuevas)
-
             DiagnosticLog.append(
                 this,
                 "captura_pon_tu_precio",
@@ -467,13 +488,6 @@ class OfferAccessibilityService : AccessibilityService() {
                     "ofertas=${nuevas.size}",
                     "precios=${nuevas.joinToString(",") { it.precio.toString() }}"
                 ) + textos.take(20)
-            )
-        }.onFailure { error ->
-            archivo.delete()
-            DiagnosticLog.append(
-                this,
-                "captura_error",
-                listOf(error.javaClass.simpleName, error.message ?: "sin mensaje")
             )
         }
     }

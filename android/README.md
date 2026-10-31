@@ -42,14 +42,15 @@ Cuando DiDi muestra la lista **Centro de solicitudes** con ofertas “Pon tu pre
 
 - **No envía notificación** (para no confundirlas con una oferta activa).
 - Guarda **cada oferta por separado** (máximo 50, sin duplicados): no mezcla dos tarjetas de la lista.
+- **Solo muestra ofertas con los datos completos** (precio y los dos tramos). Si una tarjeta aún no se ve completa, no aparece; se guarda cuando vuelve a capturarse con todos los datos.
+- La **imagen es un recorte de esa tarjeta**, no la pantalla completa.
 - La muestra en **MainActivity → Ofertas Pon tu precio (N)** como tarjeta individual con:
   - Fecha y hora.
   - Precio.
   - **Semáforo y análisis**: COP/km, COP/h y frase explicativa.
   - Recogida y viaje (min · km).
-  - Miniatura de la captura.
-  - Botones **Ver** (captura completa), **Registrar** (abre DIDI Pro) y **Borrar**.
-- Si una captura no alcanza a mostrar los tramos, la oferta queda como **“Sin análisis”** y se completa cuando vuelve a capturarse con los datos.
+  - Miniatura recortada de la oferta.
+  - Botones **Ver** (imagen ampliada), **Registrar** (abre DIDI Pro) y **Borrar**.
 
 Las ofertas “Pon tu precio” que **sí saltan** como popup siguen generando notificación normal.
 
