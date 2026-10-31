@@ -44,11 +44,23 @@ class SettingsRepository(private val store: KeyValueStore) {
         store.putBoolean(KEY_RECOGIDA, config.viajeIncluyeRecogida)
     }
 
+    /** Notificación heads-up por cada oferta (vía principal). */
+    fun notificacionesActivas(): Boolean = store.getBoolean(KEY_NOTIFICACIONES, true)
+
+    fun guardarNotificaciones(activas: Boolean) = store.putBoolean(KEY_NOTIFICACIONES, activas)
+
+    /** Tarjeta flotante sobre DiDi (experimental; puede estar bloqueada). */
+    fun overlayActivo(): Boolean = store.getBoolean(KEY_OVERLAY, false)
+
+    fun guardarOverlay(activo: Boolean) = store.putBoolean(KEY_OVERLAY, activo)
+
     companion object {
         const val KEY_META_HORA = "meta_cop_hora"
         const val KEY_META_KM = "meta_cop_km"
         const val KEY_GALON = "precio_galon"
         const val KEY_RENDIMIENTO = "rendimiento_km_galon"
         const val KEY_RECOGIDA = "viaje_incluye_recogida"
+        const val KEY_NOTIFICACIONES = "notificaciones_ofertas"
+        const val KEY_OVERLAY = "overlay_ofertas"
     }
 }

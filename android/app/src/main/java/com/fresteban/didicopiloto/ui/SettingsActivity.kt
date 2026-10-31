@@ -10,6 +10,7 @@ import com.fresteban.didicopiloto.data.MetaConfig
 import com.fresteban.didicopiloto.data.SettingsRepository
 import com.fresteban.didicopiloto.data.SharedPrefsStore
 import com.fresteban.didicopiloto.databinding.ActivitySettingsBinding
+import com.fresteban.didicopiloto.notify.OfferNotifier
 
 class SettingsActivity : AppCompatActivity() {
 
@@ -37,6 +38,8 @@ class SettingsActivity : AppCompatActivity() {
         binding.etGalon.setText(config.precioGalonCOP.toString())
         binding.etRendimiento.setText(config.rendimientoKmGalon.toString())
         binding.swRecogida.isChecked = config.viajeIncluyeRecogida
+        binding.swNotificaciones.isChecked = repo.notificacionesActivas()
+        binding.swOverlay.isChecked = repo.overlayActivo()
     }
 
     private fun guardar() {
@@ -59,6 +62,13 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         repo.save(config)
+        repo.guardarNotificaciones(binding.swNotificaciones.isChecked)
+        repo.guardarOverlay(binding.swOverlay.isChecked)
+
+        if (binding.swNotificaciones.isChecked) {
+            OfferNotifier.crearCanal(this)
+        }
+
         Toast.makeText(this, R.string.settings_saved, Toast.LENGTH_SHORT).show()
         finish()
     }

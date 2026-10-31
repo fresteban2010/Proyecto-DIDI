@@ -18,7 +18,7 @@
     <string name="btn_share_diag">Compartir diagnóstico</string>
 
     <string name="how_title">Cómo funciona</string>
-    <string name="how_body">1. Activa la accesibilidad una sola vez.\n2. Abre DiDi Conductor y espera una oferta.\n3. El copiloto lee precio, recogida y viaje, calcula COP/km y COP/h, y muestra el semáforo arriba.\n4. Si aceptas, pulsa Registrar para abrir DIDI Pro con los datos listos.\n\nLa app no acepta ni rechaza viajes. Todo se queda en tu teléfono.</string>
+    <string name="how_body">1. Activa la accesibilidad una sola vez.\n2. Abre DiDi Conductor y espera una oferta.\n3. El copiloto lee precio, recogida y viaje, calcula COP/km y COP/h, y te avisa con una notificación.\n4. Si aceptas, pulsa Registrar para abrir DIDI Pro con los datos listos.\n\nLa app no acepta ni rechaza viajes. Todo se queda en tu teléfono.</string>
 
     <string name="settings_title">Metas y costos</string>
     <string name="settings_meta_hora">Meta COP/hora</string>
@@ -26,11 +26,14 @@
     <string name="settings_galon">Precio del galón (COP)</string>
     <string name="settings_rendimiento">Rendimiento (km/galón)</string>
     <string name="settings_recogida">El tiempo del viaje ya incluye la recogida</string>
+    <string name="settings_notificaciones">Avisarme con una notificación por cada oferta</string>
+    <string name="settings_overlay">Mostrar tarjeta flotante sobre DiDi (experimental)</string>
+    <string name="settings_overlay_hint">Si tu teléfono bloquea la tarjeta, deja solo la notificación.</string>
     <string name="settings_save">Guardar</string>
     <string name="settings_saved">Ajustes guardados</string>
     <string name="settings_invalid">Revisa los valores: deben ser mayores que cero.</string>
 
-    <string name="mock_note">Pantalla de prueba. El overlay debe aparecer arriba y no tapar Aceptar.</string>
+    <string name="mock_note">Pantalla de prueba. Debe aparecer una notificación con el análisis de la oferta.</string>
     <string name="mock_accept">Aceptar</string>
 
     <string name="overlay_register">Registrar</string>

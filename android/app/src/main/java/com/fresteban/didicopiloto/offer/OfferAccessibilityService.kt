@@ -16,6 +16,7 @@ import com.fresteban.didicopiloto.bridge.PwaBridge
 import com.fresteban.didicopiloto.data.SettingsRepository
 import com.fresteban.didicopiloto.data.SharedPrefsStore
 import com.fresteban.didicopiloto.diag.DiagnosticLog
+import com.fresteban.didicopiloto.notify.OfferNotifier
 
 class OfferAccessibilityService : AccessibilityService() {
 
@@ -47,6 +48,7 @@ class OfferAccessibilityService : AccessibilityService() {
         conectado = true
         overlay?.hide()
         overlay = OfferOverlay(this)
+        OfferNotifier.crearCanal(this)
         OfferBus.subscribe(escuchaNotificaciones)
         DiagnosticLog.append(this, "servicio_conectado", listOf("accesibilidad conectada"))
     }
@@ -300,7 +302,8 @@ class OfferAccessibilityService : AccessibilityService() {
             if (enPantalla != null && enPantalla != DIDI_PACKAGE) return
         }
 
-        val config = SettingsRepository(SharedPrefsStore(this)).load()
+        val repo = SettingsRepository(SharedPrefsStore(this))
+        val config = repo.load()
         val offer = OfferParser.parse(textos)
 
         if (offer == null) {
@@ -310,15 +313,29 @@ class OfferAccessibilityService : AccessibilityService() {
 
         val hash = "${offer.precioCOP}|${offer.kmRecogida}|${offer.minRecogida}|${offer.kmViaje}|${offer.minViaje}"
         val ahora = System.currentTimeMillis()
-        if (hash == ultimoHash && ahora - ultimoHashAt < 30_000) return
+        // La misma oferta puede reaparecer en varias capturas OCR; evita notificarla dos veces.
+        if (hash == ultimoHash && ahora - ultimoHashAt < 90_000) return
         ultimoHash = hash
         ultimoHashAt = ahora
 
         val decision = DecisionEngine.evaluar(offer, config)
         DiagnosticLog.append(this, "oferta:$origen", textos, offer, decision)
 
-        overlay?.show(offer, decision) {
-            PwaBridge.open(this, offer, config.viajeIncluyeRecogida)
+        if (repo.notificacionesActivas()) {
+            OfferNotifier.show(this, offer, decision, config.viajeIncluyeRecogida)
+            DiagnosticLog.append(
+                this,
+                "notificacion_oferta",
+                listOf(decision.semaforo.name),
+                offer,
+                decision
+            )
+        }
+
+        if (repo.overlayActivo()) {
+            overlay?.show(offer, decision) {
+                PwaBridge.open(this, offer, config.viajeIncluyeRecogida)
+            }
         }
     }
 }

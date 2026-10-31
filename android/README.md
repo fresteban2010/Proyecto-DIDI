@@ -1,6 +1,6 @@
 # DIDI Copiloto (Android)
 
-App nativa que lee la oferta de **DiDi Conductor**, calcula si la carrera conviene y muestra una tarjeta flotante con semáforo, COP/km y COP/h. **No acepta ni rechaza viajes**: solo aconseja.
+App nativa que lee la oferta de **DiDi Conductor**, calcula si la carrera conviene y **te avisa con una notificación** (semáforo, COP/km y COP/h). La tarjeta flotante sobre DiDi queda como opción experimental. **No acepta ni rechaza viajes**: solo aconseja.
 
 Se instala por **sideload** (APK). No requiere Play Store, cuenta, servidor ni internet.
 
@@ -27,14 +27,14 @@ Se instala por **sideload** (APK). No requiere Play Store, cuenta, servidor ni i
 ## Uso
 
 1. Abre DiDi Conductor y ponte en línea.
-2. Cuando llegue una oferta, el copiloto muestra arriba:
+2. Cuando llegue una oferta, aparece una **notificación heads-up** con:
    - 🔴 / 🟡 / 🟢
    - `$1.237/km · $22.613/h`
-   - Una frase con el motivo.
+   - Recogida, viaje, precio y el motivo.
 3. Si aceptas en DiDi, pulsa **Registrar** para abrir DIDI Pro con los datos ya cargados.
 4. Si no te convence, pulsa **Ignorar**.
 
-La tarjeta se oculta sola a los 12 segundos y no tapa el botón `Aceptar` de DiDi.
+La notificación se actualiza con cada oferta nueva (no se acumulan), se descarta a los 60 segundos y no depende de que DiDi permita dibujar encima. En **Ajustes** puedes activar además la tarjeta flotante experimental.
 
 ## Ajustes
 
@@ -42,6 +42,10 @@ La tarjeta se oculta sola a los 12 segundos y no tapa el botón `Aceptar` de DiD
 - Meta COP/km (por defecto `$2.000`).
 - Precio del galón (`$16.000`) y rendimiento (`40 km/gal`).
 - **“El tiempo del viaje ya incluye la recogida”**: actívalo si el segundo dato de DiDi (por ejemplo `35 min`) ya cuenta los minutos de recogida. Si no, se suman los dos tramos.
+- **Notificación por oferta**: activada por defecto.
+- **Tarjeta flotante sobre DiDi**: desactivada por defecto; algunos teléfonos o versiones de DiDi la bloquean.
+
+Si no ves las notificaciones, revisa Ajustes → Apps → DIDI Copiloto → **Notificaciones**: el canal **Ofertas de DiDi** debe estar en importancia alta/urgente y permitir avisos flotantes.
 
 ## Probar sin una oferta real
 

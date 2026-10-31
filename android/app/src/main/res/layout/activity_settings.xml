@@ -108,6 +108,30 @@
             android:text="@string/settings_recogida"
             android:textColor="@color/text" />
 
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/swNotificaciones"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/settings_notificaciones"
+            android:textColor="@color/text" />
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/swOverlay"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/settings_overlay"
+            android:textColor="@color/text" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/settings_overlay_hint"
+            android:textColor="@color/muted"
+            android:textSize="12sp" />
+
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnGuardar"
             style="@style/Widget.Material3.Button"
