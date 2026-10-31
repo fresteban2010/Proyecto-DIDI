@@ -9,10 +9,14 @@ import android.view.View
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.fresteban.didicopiloto.R
 import com.fresteban.didicopiloto.bridge.PwaBridge
+import com.fresteban.didicopiloto.data.SettingsRepository
+import com.fresteban.didicopiloto.data.SharedPrefsStore
+import com.fresteban.didicopiloto.offer.Offer
 import com.fresteban.didicopiloto.pon_tu_precio.CapturaPonTuPrecio
 import com.fresteban.didicopiloto.pon_tu_precio.PonTuPrecioRepository
 import java.io.File
@@ -117,7 +121,30 @@ class PonTuPrecioActivity : AppCompatActivity() {
             verCaptura(archivo)
         }
         item.findViewById<View>(R.id.btnRegistrarPonTuPrecio).setOnClickListener {
-            PwaBridge.openApp(this)
+            if (!captura.completa) {
+                Toast.makeText(
+                    this,
+                    R.string.pon_tu_precio_no_tramos,
+                    Toast.LENGTH_SHORT
+                ).show()
+                return@setOnClickListener
+            }
+
+            val config = SettingsRepository(SharedPrefsStore(this)).load()
+            val offer = Offer(
+                precioCOP = captura.precio,
+                kmRecogida = captura.kmRecogida ?: 0.0,
+                minRecogida = captura.minRecogida ?: 0,
+                kmViaje = captura.kmViaje ?: 0.0,
+                minViaje = captura.minViaje ?: 0,
+                metodoPago = "efectivo",
+                crudo = captura.texto
+            )
+            PwaBridge.open(
+                this,
+                offer,
+                viajeIncluyeRecogida = config.viajeIncluyeRecogida
+            )
         }
         item.findViewById<View>(R.id.btnEliminarPonTuPrecio).setOnClickListener {
             AlertDialog.Builder(this)

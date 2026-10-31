@@ -50,7 +50,7 @@ Cuando DiDi muestra la lista **Centro de solicitudes** con ofertas “Pon tu pre
   - **Semáforo y análisis**: COP/km, COP/h y frase explicativa.
   - Recogida y viaje (min · km).
   - Miniatura recortada de la oferta.
-  - Botones **Ver** (imagen ampliada), **Registrar** (abre DIDI Pro) y **Borrar**.
+  - Botones **Ver** (imagen ampliada), **Registrar** (abre DIDI Pro con los datos de esa oferta ya cargados) y **Borrar**.
 
 Las ofertas “Pon tu precio” que **sí saltan** como popup siguen generando notificación normal.
 
