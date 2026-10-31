@@ -20,6 +20,7 @@ import com.fresteban.didicopiloto.data.SharedPrefsStore
 import com.fresteban.didicopiloto.diag.DiagnosticLog
 import com.fresteban.didicopiloto.notify.OfferNotifier
 import com.fresteban.didicopiloto.pon_tu_precio.CapturaPonTuPrecio
+import com.fresteban.didicopiloto.pon_tu_precio.OfertaLista
 import com.fresteban.didicopiloto.pon_tu_precio.PonTuPrecioParser
 import com.fresteban.didicopiloto.pon_tu_precio.PonTuPrecioRepository
 import java.io.File
@@ -48,6 +49,8 @@ class OfferAccessibilityService : AccessibilityService() {
     private var ocrPendiente: Boolean = false
     private var ultimaListaHash: String = ""
     private var ultimaListaAt: Long = 0L
+    private var ocrInicioMs: Long = 0L
+    private val procesadorCapturas = java.util.concurrent.Executors.newSingleThreadExecutor()
 
     /**
      * DiDi no emite eventos cuando aparece la tarjeta de oferta, así que un
@@ -69,7 +72,7 @@ class OfferAccessibilityService : AccessibilityService() {
                     }
                 }
             } finally {
-                handler.postDelayed(this, 2_000)
+                handler.postDelayed(this, 1_500)
             }
         }
     }
@@ -86,7 +89,7 @@ class OfferAccessibilityService : AccessibilityService() {
         OfferNotifier.crearCanal(this)
         OfferBus.subscribe(escuchaNotificaciones)
         handler.removeCallbacks(bucleOcr)
-        handler.postDelayed(bucleOcr, 1_200)
+        handler.postDelayed(bucleOcr, 600)
         DiagnosticLog.append(this, "servicio_conectado", listOf("accesibilidad conectada"))
     }
 
@@ -102,6 +105,7 @@ class OfferAccessibilityService : AccessibilityService() {
         ocr = null
         capturando = false
         ocrPendiente = false
+        procesadorCapturas.shutdown()
         super.onDestroy()
     }
 
@@ -264,10 +268,11 @@ class OfferAccessibilityService : AccessibilityService() {
         if (overlay?.estaVisible() == true) return
 
         val ahora = SystemClock.uptimeMillis()
-        if (!forzar && ahora - ultimaCapturaAt < 1_500) return
+        if (!forzar && ahora - ultimaCapturaAt < 800) return
         ultimaCapturaAt = ahora
         capturando = true
         ocrPendiente = false
+        ocrInicioMs = ahora
 
         val cliente = ocr ?: OfferOcr().also { ocr = it }
 
@@ -303,15 +308,44 @@ class OfferAccessibilityService : AccessibilityService() {
                                                 "ocr_textos",
                                                 lineas
                                             )
-                                            if (!PantallaOferta.esNuestraNotificacion(lineas) &&
-                                                PantallaOferta.esCentroDeSolicitudes(lineas) &&
-                                                PantallaOferta.esPonTuPrecio(lineas)
-                                            ) {
-                                                guardarCapturaPonTuPrecio(copia, lineasEstructuradas)
+                                            DiagnosticLog.append(
+                                                this@OfferAccessibilityService,
+                                                "ocr_ms",
+                                                listOf(
+                                                    (SystemClock.uptimeMillis() - ocrInicioMs)
+                                                        .toString()
+                                                )
+                                            )
+
+                                            val esLista =
+                                                !PantallaOferta.esNuestraNotificacion(lineas) &&
+                                                    PantallaOferta.esCentroDeSolicitudes(lineas) &&
+                                                    PantallaOferta.esPonTuPrecio(lineas)
+
+                                            if (esLista) {
+                                                // El recorte y el guardado van a un hilo aparte
+                                                // para no frenar la siguiente captura.
+                                                val enviado = runCatching {
+                                                    procesadorCapturas.execute {
+                                                        try {
+                                                            guardarCapturaPonTuPrecio(
+                                                                copia,
+                                                                lineasEstructuradas
+                                                            )
+                                                        } finally {
+                                                            copia.recycle()
+                                                        }
+                                                    }
+                                                }.isSuccess
+                                                if (!enviado) copia.recycle()
+                                            } else {
+                                                copia.recycle()
                                             }
+
                                             evaluar(lineas, origen = "ocr")
+                                        } else {
+                                            copia.recycle()
                                         }
-                                        copia.recycle()
                                         finalizarCaptura()
                                     },
                                     { error ->
@@ -378,9 +412,10 @@ class OfferAccessibilityService : AccessibilityService() {
         val unido = textos.joinToString(" | ")
         val hash = unido.hashCode().toString()
         val ahora = System.currentTimeMillis()
+        val inicioCaptura = SystemClock.uptimeMillis()
 
-        if (hash == ultimaListaHash && ahora - ultimaListaAt < 60_000) return
-        if (ahora - ultimaListaAt < 8_000) return
+        if (hash == ultimaListaHash && ahora - ultimaListaAt < 15_000) return
+        if (ahora - ultimaListaAt < 2_000) return
         ultimaListaHash = hash
         ultimaListaAt = ahora
 
@@ -392,8 +427,8 @@ class OfferAccessibilityService : AccessibilityService() {
         val existentes = PonTuPrecioRepository.listar(this)
         val nuevasTarjetas = tarjetas.filter { tarjeta ->
             existentes.none {
-                it.precio == tarjeta.oferta.precio &&
-                    it.completa &&
+                it.completa &&
+                    mismaRuta(it, tarjeta.oferta) &&
                     kotlin.math.abs(it.ts - ahora) < 30 * 60 * 1000L
             }
         }
@@ -486,10 +521,25 @@ class OfferAccessibilityService : AccessibilityService() {
                 "captura_pon_tu_precio",
                 listOf(
                     "ofertas=${nuevas.size}",
-                    "precios=${nuevas.joinToString(",") { it.precio.toString() }}"
+                    "precios=${nuevas.joinToString(",") { it.precio.toString() }}",
+                    "ms=${SystemClock.uptimeMillis() - inicioCaptura}"
                 ) + textos.take(20)
             )
         }
+    }
+
+    private fun mismaRuta(existente: CapturaPonTuPrecio, oferta: OfertaLista): Boolean {
+        if (existente.minRecogida != oferta.minRecogida ||
+            existente.minViaje != oferta.minViaje
+        ) {
+            return false
+        }
+        val recogida = existente.kmRecogida ?: return false
+        val nuevaRecogida = oferta.kmRecogida ?: return false
+        val viaje = existente.kmViaje ?: return false
+        val nuevoViaje = oferta.kmViaje ?: return false
+        return kotlin.math.abs(recogida - nuevaRecogida) < 0.15 &&
+            kotlin.math.abs(viaje - nuevoViaje) < 0.15
     }
 
     private fun evaluar(textos: List<String>, origen: String) {

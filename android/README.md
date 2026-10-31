@@ -109,7 +109,9 @@ En GitHub Actions, el workflow `.github/workflows/android.yml` ejecuta los tests
 
 ## Limitaciones
 
-- Mientras DiDi está en primer plano, el copiloto muestrea la pantalla cada 2 segundos para no perder ofertas que no generan eventos de accesibilidad. Es el precio de la fiabilidad; si notas consumo de batería, se puede subir el intervalo.
+- Mientras DiDi está en primer plano, el copiloto muestrea la pantalla cada 1,5 segundos para no perder ofertas que no generan eventos de accesibilidad. El recorte y guardado de cada tarjeta se hace en segundo plano para no frenar la siguiente captura.
+- Si el OCR no alcanza a leer el botón `Aceptar` de una tarjeta, se agrupa igual por precio y tramos (respaldo) para no perderla.
+- Dos viajes distintos con el mismo precio se guardan por separado; se comparan también kilómetros y minutos.
 - Si DiDi cambia el diseño de la oferta, hay que ajustar el parser (el log de diagnóstico lo hace rápido).
 - Algunos fabricantes (Xiaomi, Huawei, Samsung) matan servicios en segundo plano; hay que excluir la app de la optimización de batería.
 - No funciona en iPhone: iOS no permite leer la pantalla de otras apps.

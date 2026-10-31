@@ -53,7 +53,7 @@ object PonTuPrecioRepository {
         val lista = listar(context).toMutableList()
         nuevas.forEach { nueva ->
             val indice = lista.indexOfFirst {
-                it.precio == nueva.precio && abs(it.ts - nueva.ts) < VENTANA_FUSION_MS
+                mismaOferta(it, nueva) && abs(it.ts - nueva.ts) < VENTANA_FUSION_MS
             }
 
             if (indice >= 0) {
@@ -119,6 +119,20 @@ object PonTuPrecioRepository {
             )
         }
         File(carpeta(context), ARCHIVO).writeText(array.toString())
+    }
+
+    private fun mismaOferta(a: CapturaPonTuPrecio, b: CapturaPonTuPrecio): Boolean {
+        if (a.precio != b.precio ||
+            a.minRecogida != b.minRecogida ||
+            a.minViaje != b.minViaje
+        ) {
+            return false
+        }
+        val aRecogida = a.kmRecogida ?: return false
+        val bRecogida = b.kmRecogida ?: return false
+        val aViaje = a.kmViaje ?: return false
+        val bViaje = b.kmViaje ?: return false
+        return abs(aRecogida - bRecogida) < 0.15 && abs(aViaje - bViaje) < 0.15
     }
 
     private fun enteroONull(obj: JSONObject, clave: String): Int? =

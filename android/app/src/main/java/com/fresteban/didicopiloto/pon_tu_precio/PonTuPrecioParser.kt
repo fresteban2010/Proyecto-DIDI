@@ -55,57 +55,104 @@ object PonTuPrecioParser {
         ordenadas.filter { it.texto.contains("aceptar", ignoreCase = true) }
             .forEach { aceptar ->
                 val rango = ordenadas.filter { it.top >= anterior && it.top <= aceptar.bottom }
-                val precio = rango.firstOrNull { linea ->
-                    val valor = PRECIO.find(linea.texto)
-                        ?.groupValues
-                        ?.getOrNull(1)
-                        ?.replace(".", "")
-                        ?.replace(",", "")
-                        ?.toLongOrNull()
-                    valor != null && valor in 1_000..200_000
-                }
+                val precio = rango.firstOrNull { esPrecio(it) }
 
-                if (precio == null) {
-                    anterior = aceptar.bottom
-                    return@forEach
-                }
+                if (precio != null) {
+                    // Sube desde el precio hasta la línea del título, sin entrar al
+                    // encabezado de la lista ni saltar a otra tarjeta.
+                    var top = precio.top
+                    var indice = rango.indexOf(precio) - 1
+                    while (indice >= 0) {
+                        val linea = rango[indice]
+                        if (top - linea.bottom > alturaMedia * 1.5) break
+                        if (esEncabezado(linea.texto)) break
+                        top = linea.top
+                        indice--
+                    }
 
-                // Sube desde el precio hasta la línea del título, sin entrar al
-                // encabezado de la lista ni saltar a otra tarjeta.
-                var top = precio.top
-                val indicePrecio = rango.indexOf(precio)
-                var indice = indicePrecio - 1
-                while (indice >= 0) {
-                    val linea = rango[indice]
-                    if (top - linea.bottom > alturaMedia * 1.5) break
-                    if (esEncabezado(linea.texto)) break
-                    top = linea.top
-                    indice--
-                }
-
-                val contenido = rango.filter { it.top >= top && it.top <= aceptar.bottom }
-                if (contenido.isEmpty()) {
-                    anterior = aceptar.bottom
-                    return@forEach
-                }
-
-                val oferta = ofertas(contenido.map { it.texto }).firstOrNull()
-                if (oferta != null) {
-                    resultado.add(
-                        TarjetaLista(
-                            oferta = oferta,
-                            top = top,
-                            bottom = aceptar.bottom,
-                            left = contenido.minOf { it.left },
-                            right = contenido.maxOf { it.right }
-                        )
-                    )
+                    val contenido = rango.filter { it.top >= top && it.top <= aceptar.bottom }
+                    if (contenido.isNotEmpty()) {
+                        val oferta = ofertas(contenido.map { it.texto }).firstOrNull()
+                        if (oferta != null) {
+                            resultado.add(crearTarjeta(oferta, contenido))
+                        }
+                    }
                 }
 
                 anterior = aceptar.bottom
             }
 
-        return resultado
+        // Respaldo: a veces el OCR no captura el botón "Aceptar". Se agrupa
+        // desde cada precio hasta el siguiente precio y se valida la tarjeta.
+        val cubiertas = resultado.map { it.top..it.bottom }.toMutableList()
+        ordenadas.filter { esPrecio(it) }
+            .forEach { precio ->
+                if (cubiertas.any { rango -> precio.top in rango }) return@forEach
+
+                val siguiente = ordenadas.firstOrNull {
+                    it.top > precio.top && esPrecio(it)
+                }?.top ?: Int.MAX_VALUE
+
+                val rango = ordenadas.filter { it.top >= precio.top && it.top < siguiente }
+                val contexto = ordenadas.filter {
+                    it.top < precio.top &&
+                        precio.top - it.bottom <= alturaMedia * 1.5 &&
+                        !esEncabezado(it.texto)
+                }
+                val contenido = (contexto + rango)
+                    .distinctBy { it.top to it.left }
+                    .sortedBy { it.top }
+
+                if (contenido.isEmpty()) return@forEach
+
+                val oferta = ofertas(contenido.map { it.texto }).firstOrNull()
+                    ?: return@forEach
+
+                if (oferta.esPonTuPrecio &&
+                    oferta.completa &&
+                    resultado.none { mismaTarjeta(it.oferta, oferta) }
+                ) {
+                    val tarjeta = crearTarjeta(oferta, contenido)
+                    resultado.add(tarjeta)
+                    cubiertas.add(tarjeta.top..tarjeta.bottom)
+                }
+            }
+
+        return resultado.sortedBy { it.top }
+    }
+
+    private fun crearTarjeta(oferta: OfertaLista, contenido: List<LineaOcr>): TarjetaLista =
+        TarjetaLista(
+            oferta = oferta,
+            top = contenido.minOf { it.top },
+            bottom = contenido.maxOf { it.bottom },
+            left = contenido.minOf { it.left },
+            right = contenido.maxOf { it.right }
+        )
+
+    private fun mismaTarjeta(a: OfertaLista, b: OfertaLista): Boolean {
+        if (a.precio != b.precio ||
+            a.minRecogida != b.minRecogida ||
+            a.minViaje != b.minViaje
+        ) {
+            return false
+        }
+        val aRecogida = a.kmRecogida ?: return false
+        val bRecogida = b.kmRecogida ?: return false
+        val aViaje = a.kmViaje ?: return false
+        val bViaje = b.kmViaje ?: return false
+        return kotlin.math.abs(aRecogida - bRecogida) < 0.15 &&
+            kotlin.math.abs(aViaje - bViaje) < 0.15
+    }
+
+    private fun esPrecio(linea: LineaOcr): Boolean {
+        val valor = PRECIO.find(linea.texto)
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.replace(".", "")
+            ?.replace(",", "")
+            ?.toLongOrNull()
+        return valor != null && valor in 1_000..200_000
     }
 
     private fun esEncabezado(texto: String): Boolean {

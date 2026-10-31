@@ -23,10 +23,13 @@ object PantallaOferta {
     /** Lista de solicitudes (no es una oferta que salta). */
     fun esCentroDeSolicitudes(textos: List<String>): Boolean {
         val unido = textos.joinToString(" ").lowercase()
-        return unido.contains("centro de solicitudes") ||
+        // "solicitud" cubre el singular y las lecturas truncadas del OCR.
+        return unido.contains("centro de solicitud") ||
             unido.contains("km al encuentro")
     }
 
-    fun esPonTuPrecio(textos: List<String>): Boolean =
-        textos.joinToString(" ").lowercase().contains("pon tu precio")
+    fun esPonTuPrecio(textos: List<String>): Boolean {
+        // Tolerante a "Precio", "Preclo", "Preci0" y truncados.
+        return textos.joinToString(" ").lowercase().contains("pon tu")
+    }
 }

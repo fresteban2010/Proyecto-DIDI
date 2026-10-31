@@ -98,7 +98,7 @@ Sin archivos MP3: osciladores senoidales con envolvente anti-clic.
 
 ### 7. Copiloto Android (opcional, sideload)
 
-App nativa complementaria en `android/` (v0.5.1) que lee la oferta de DiDi Conductor y **avisa con una notificación** con semáforo, COP/km, COP/h y una frase explicativa. La tarjeta flotante sobre DiDi queda como opción experimental. **No acepta ni rechaza viajes.**
+App nativa complementaria en `android/` (v0.6.0) que lee la oferta de DiDi Conductor y **avisa con una notificación** con semáforo, COP/km, COP/h y una frase explicativa. La tarjeta flotante sobre DiDi queda como opción experimental. **No acepta ni rechaza viajes.**
 
 - Se instala por **APK** (sideload), sin Play Store.
 - Requiere activar **Accesibilidad** una vez (Android 13+: “Permitir ajustes restringidos”).
