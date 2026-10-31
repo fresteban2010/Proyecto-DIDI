@@ -15,7 +15,20 @@
     <string name="btn_battery">Quitar restricción de batería</string>
     <string name="btn_settings">Metas y costos</string>
     <string name="btn_mock">Probar con oferta de ejemplo</string>
+    <string name="btn_pon_tu_precio">Ofertas Pon tu precio</string>
     <string name="btn_share_diag">Compartir diagnóstico</string>
+
+    <string name="pon_tu_precio_title">Ofertas Pon tu precio</string>
+    <string name="pon_tu_precio_subtitle">Capturas de la lista de solicitudes. No generan notificación; ábrelas si aceptaste una.</string>
+    <string name="pon_tu_precio_clear">Limpiar todo</string>
+    <string name="pon_tu_precio_empty">Aún no hay capturas. Cuando aparezca una oferta Pon tu precio en la lista de solicitudes, se guardará aquí.</string>
+    <string name="pon_tu_precio_view">Ver</string>
+    <string name="pon_tu_precio_register">Registrar</string>
+    <string name="pon_tu_precio_delete">Borrar</string>
+    <string name="pon_tu_precio_delete_confirm">¿Eliminar esta captura?</string>
+    <string name="pon_tu_precio_clear_confirm">¿Eliminar todas las capturas?</string>
+    <string name="pon_tu_precio_no_prices">Precio no detectado</string>
+    <string name="pon_tu_precio_no_tramos">Revisa la captura para los datos</string>
 
     <string name="how_title">Cómo funciona</string>
     <string name="how_body">1. Activa la accesibilidad una sola vez.\n2. Abre DiDi Conductor y espera una oferta.\n3. El copiloto lee precio, recogida y viaje, calcula COP/km y COP/h, y te avisa con una notificación.\n4. Si aceptas, pulsa Registrar para abrir DIDI Pro con los datos listos.\n\nLa app no acepta ni rechaza viajes. Todo se queda en tu teléfono.</string>

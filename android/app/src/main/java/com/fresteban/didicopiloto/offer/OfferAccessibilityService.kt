@@ -19,6 +19,11 @@ import com.fresteban.didicopiloto.data.SettingsRepository
 import com.fresteban.didicopiloto.data.SharedPrefsStore
 import com.fresteban.didicopiloto.diag.DiagnosticLog
 import com.fresteban.didicopiloto.notify.OfferNotifier
+import com.fresteban.didicopiloto.pon_tu_precio.CapturaPonTuPrecio
+import com.fresteban.didicopiloto.pon_tu_precio.PonTuPrecioParser
+import com.fresteban.didicopiloto.pon_tu_precio.PonTuPrecioRepository
+import java.io.File
+import java.io.FileOutputStream
 
 class OfferAccessibilityService : AccessibilityService() {
 
@@ -41,6 +46,8 @@ class OfferAccessibilityService : AccessibilityService() {
     private var capturando: Boolean = false
     private var ultimaCapturaAt: Long = 0L
     private var ocrPendiente: Boolean = false
+    private var ultimaListaHash: String = ""
+    private var ultimaListaAt: Long = 0L
 
     /**
      * DiDi no emite eventos cuando aparece la tarjeta de oferta, así que un
@@ -289,16 +296,22 @@ class OfferAccessibilityService : AccessibilityService() {
                                 cliente.reconocer(
                                     copia,
                                     { lineas ->
-                                        copia.recycle()
-                                        finalizarCaptura()
                                         if (lineas.isNotEmpty()) {
                                             DiagnosticLog.append(
                                                 this@OfferAccessibilityService,
                                                 "ocr_textos",
                                                 lineas
                                             )
+                                            if (!PantallaOferta.esNuestraNotificacion(lineas) &&
+                                                PantallaOferta.esCentroDeSolicitudes(lineas) &&
+                                                PantallaOferta.esPonTuPrecio(lineas)
+                                            ) {
+                                                guardarCapturaPonTuPrecio(copia, lineas)
+                                            }
                                             evaluar(lineas, origen = "ocr")
                                         }
+                                        copia.recycle()
+                                        finalizarCaptura()
                                     },
                                     { error ->
                                         copia.recycle()
@@ -355,7 +368,93 @@ class OfferAccessibilityService : AccessibilityService() {
         }
     }
 
+    /**
+     * Guarda la captura de la lista "Centro de solicitudes" con Pon tu precio.
+     * Estas ofertas no saltan y no deben generar notificación.
+     */
+    private fun guardarCapturaPonTuPrecio(bitmap: Bitmap, textos: List<String>) {
+        val unido = textos.joinToString(" | ")
+        val hash = unido.hashCode().toString()
+        val ahora = System.currentTimeMillis()
+
+        if (hash == ultimaListaHash && ahora - ultimaListaAt < 60_000) return
+        if (ahora - ultimaListaAt < 8_000) return
+        ultimaListaHash = hash
+        ultimaListaAt = ahora
+
+        val carpeta = PonTuPrecioRepository.carpeta(this)
+        val nombre = "captura_$ahora.jpg"
+        val archivo = File(carpeta, nombre)
+
+        runCatching {
+            val anchoMax = 720
+            val escala = if (bitmap.width > anchoMax) {
+                anchoMax.toFloat() / bitmap.width
+            } else {
+                1f
+            }
+            val reducido =
+                if (escala < 1f) {
+                    Bitmap.createScaledBitmap(
+                        bitmap,
+                        (bitmap.width * escala).toInt(),
+                        (bitmap.height * escala).toInt(),
+                        true
+                    )
+                } else {
+                    bitmap
+                }
+
+            FileOutputStream(archivo).use { salida ->
+                reducido.compress(Bitmap.CompressFormat.JPEG, 82, salida)
+            }
+            if (reducido !== bitmap) reducido.recycle()
+
+            val precios = PonTuPrecioParser.precios(textos)
+            val tramos = PonTuPrecioParser.tramos(textos)
+
+            PonTuPrecioRepository.agregar(
+                this,
+                CapturaPonTuPrecio(
+                    ts = ahora,
+                    imagen = nombre,
+                    precios = precios,
+                    tramos = tramos,
+                    texto = unido.take(2_000)
+                )
+            )
+
+            DiagnosticLog.append(
+                this,
+                "captura_pon_tu_precio",
+                listOf(
+                    "precios=${precios.joinToString(",")}",
+                    "tramos=${tramos.joinToString(";")}"
+                ) + textos.take(20)
+            )
+        }.onFailure { error ->
+            archivo.delete()
+            DiagnosticLog.append(
+                this,
+                "captura_error",
+                listOf(error.javaClass.simpleName, error.message ?: "sin mensaje")
+            )
+        }
+    }
+
     private fun evaluar(textos: List<String>, origen: String) {
+        // Nuestra propia notificación no es una oferta: corta el bucle de OCR.
+        if (PantallaOferta.esNuestraNotificacion(textos)) {
+            DiagnosticLog.append(this, "ocr_propio", textos)
+            return
+        }
+
+        // La lista "Centro de solicitudes" no salta como oferta: se captura sin notificar.
+        if (PantallaOferta.esCentroDeSolicitudes(textos)) {
+            DiagnosticLog.append(this, "lista_sin_notificar", textos)
+            return
+        }
+
         // Una notificación vieja no debe pintar una tarjeta si DiDi no está abierto.
         if (origen == "notificacion") {
             val enPantalla = rootInActiveWindow?.packageName?.toString()

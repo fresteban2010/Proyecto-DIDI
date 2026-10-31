@@ -98,12 +98,14 @@ Sin archivos MP3: osciladores senoidales con envolvente anti-clic.
 
 ### 7. Copiloto Android (opcional, sideload)
 
-App nativa complementaria en `android/` (v0.2.1) que lee la oferta de DiDi Conductor y **avisa con una notificación** con semáforo, COP/km, COP/h y una frase explicativa. La tarjeta flotante sobre DiDi queda como opción experimental. **No acepta ni rechaza viajes.**
+App nativa complementaria en `android/` (v0.3.0) que lee la oferta de DiDi Conductor y **avisa con una notificación** con semáforo, COP/km, COP/h y una frase explicativa. La tarjeta flotante sobre DiDi queda como opción experimental. **No acepta ni rechaza viajes.**
 
 - Se instala por **APK** (sideload), sin Play Store.
 - Requiere activar **Accesibilidad** una vez (Android 13+: “Permitir ajustes restringidos”).
 - La notificación es la vía principal: DiDi puede bloquear los overlays, pero no las notificaciones.
 - El parser tolera distancias en metros (`351 m`) y precios con botones de “Pon tu precio” al final.
+- **Ofertas “Pon tu precio” en lista:** las que aparecen en `Centro de solicitudes` y no saltan **no notifican**; se guardan como captura con tarjeta de datos + miniatura dentro de la app (máx. 50). Las que sí saltan como popup notifican normal.
+- El OCR **ignora sus propias notificaciones** para evitar ofertas falsas y bucles.
 - El botón **Registrar** abre esta PWA con `?registrar=1&precio=...` y el modal de carrera precargado.
 - Todo ocurre en el teléfono; no hay backend ni telemetría.
 - **Descarga:** <https://github.com/Fresteban2010/Proyecto-DIDI/releases> (`didi-copiloto.apk`).

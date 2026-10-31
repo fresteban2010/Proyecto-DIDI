@@ -36,6 +36,21 @@ Se instala por **sideload** (APK). No requiere Play Store, cuenta, servidor ni i
 
 La notificación se actualiza con cada oferta nueva (no se acumulan), se descarta a los 60 segundos y no depende de que DiDi permita dibujar encima. En **Ajustes** puedes activar además la tarjeta flotante experimental.
 
+## Ofertas “Pon tu precio” en lista
+
+Cuando DiDi muestra la lista **Centro de solicitudes** con ofertas “Pon tu precio” que **no saltan**, el copiloto:
+
+- **No envía notificación** (para no confundirlas con una oferta activa).
+- Guarda una **captura de pantalla** de esa lista (máximo 50, sin duplicados).
+- La muestra en **MainActivity → Ofertas Pon tu precio (N)** como tarjeta con:
+  - Fecha y hora.
+  - Precios detectados.
+  - Tramos detectados (min · km).
+  - Miniatura de la captura.
+  - Botones **Ver** (captura completa), **Registrar** (abre DIDI Pro) y **Borrar**.
+
+Las ofertas “Pon tu precio” que **sí saltan** como popup siguen generando notificación normal.
+
 ## Ajustes
 
 - Meta COP/hora (por defecto `$30.000`).
@@ -64,7 +79,7 @@ Además de **Quitar restricción de batería**:
 
 Cada oferta leída se guarda en `filesDir/diagnostico.jsonl` (solo en el teléfono). El botón **Compartir diagnóstico** abre el menú de compartir para enviar el archivo. Sirve para calibrar el parser cuando DiDi cambie el formato.
 
-El log incluye los textos crudos, los campos parseados y el resultado del motor. En la versión 0.1.2 también registra `servicio_conectado`, `servicio_desconectado`, `didi_ventana` (lo que expone la pantalla de DiDi) y `overlay_error`. No se envía nada automáticamente.
+El log incluye los textos crudos, los campos parseados y el resultado del motor. También registra `servicio_conectado`, `servicio_desconectado`, `didi_ventana`, `ocr_propio` (notificación propia ignorada), `lista_sin_notificar`, `captura_pon_tu_precio` y errores de captura. No se envía nada automáticamente.
 
 ## Compilar
 

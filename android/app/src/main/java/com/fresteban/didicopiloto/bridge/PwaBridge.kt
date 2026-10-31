@@ -19,6 +19,17 @@ object PwaBridge {
         runCatching { context.startActivity(intent) }
     }
 
+    /** Abre la PWA sin datos para registrar manualmente una oferta aceptada. */
+    fun openApp(context: Context, baseUrl: String = BuildConfig.PWA_BASE_URL) {
+        val intent = Intent(
+            Intent.ACTION_VIEW,
+            Uri.parse(baseUrl.trimEnd('/') + "/")
+        ).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        runCatching { context.startActivity(intent) }
+    }
+
     fun buildUrl(
         offer: Offer,
         baseUrl: String = BuildConfig.PWA_BASE_URL,

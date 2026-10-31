@@ -16,7 +16,9 @@ import androidx.core.content.ContextCompat
 import com.fresteban.didicopiloto.databinding.ActivityMainBinding
 import com.fresteban.didicopiloto.diag.DiagnosticLog
 import com.fresteban.didicopiloto.offer.OfferAccessibilityService
+import com.fresteban.didicopiloto.pon_tu_precio.PonTuPrecioRepository
 import com.fresteban.didicopiloto.ui.MockOfferActivity
+import com.fresteban.didicopiloto.ui.PonTuPrecioActivity
 import com.fresteban.didicopiloto.ui.SettingsActivity
 
 class MainActivity : AppCompatActivity() {
@@ -43,6 +45,9 @@ class MainActivity : AppCompatActivity() {
         binding.btnProbar.setOnClickListener {
             startActivity(Intent(this, MockOfferActivity::class.java))
         }
+        binding.btnPonTuPrecio.setOnClickListener {
+            startActivity(Intent(this, PonTuPrecioActivity::class.java))
+        }
         binding.btnCompartir.setOnClickListener { compartirDiagnostico() }
 
         pedirPermisoNotificaciones()
@@ -51,6 +56,17 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         actualizarEstado()
+        actualizarContadorPonTuPrecio()
+    }
+
+    private fun actualizarContadorPonTuPrecio() {
+        val total = PonTuPrecioRepository.listar(this).size
+        binding.btnPonTuPrecio.text =
+            if (total > 0) {
+                getString(R.string.btn_pon_tu_precio) + " ($total)"
+            } else {
+                getString(R.string.btn_pon_tu_precio)
+            }
     }
 
     private fun actualizarEstado() {
