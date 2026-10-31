@@ -4,6 +4,9 @@ App nativa que lee la oferta de **DiDi Conductor**, calcula si la carrera convie
 
 Se instala por **sideload** (APK). No requiere Play Store, cuenta, servidor ni internet.
 
+**Versión actual:** `0.6.0` (versionCode 13).
+**Documentación:** [Changelog](../CHANGELOG.md) · [Resumen técnico](../docs/RESUMEN_TECNICO.md).
+
 ---
 
 ## Requisitos
@@ -54,6 +57,15 @@ Cuando DiDi muestra la lista **Centro de solicitudes** con ofertas “Pon tu pre
 
 Las ofertas “Pon tu precio” que **sí saltan** como popup siguen generando notificación normal.
 
+## Rendimiento y precisión
+
+- Muestreo de pantalla cada **1,5 s** mientras DiDi está en primer plano.
+- El recorte y guardado de cada tarjeta se hace **en segundo plano**, sin frenar la siguiente captura.
+- Si el OCR no lee el botón `Aceptar`, la tarjeta se agrupa por **precio + tramos** (respaldo).
+- Dos viajes distintos con el mismo precio se guardan por separado: se comparan **km y minutos**.
+- Detección tolerante a errores OCR en `Centro de solicitudes` y `Pon tu precio`.
+- Diagnóstico de tiempos: `ocr_ms` y `ms` de cada captura.
+
 ## Ajustes
 
 - Meta COP/hora (por defecto `$30.000`).
@@ -67,7 +79,7 @@ Si no ves las notificaciones, revisa Ajustes → Apps → DIDI Copiloto → **No
 
 ## Probar sin una oferta real
 
-En la pantalla principal pulsa **Probar con oferta de ejemplo**. Se abre una tarjeta con los mismos textos de una oferta real (`$16.206`, `8 min (1,9 km)`, `35 min (11,2 km)`) y el overlay debe aparecer en la franja superior.
+En la pantalla principal pulsa **Probar con oferta de ejemplo**. Se abre una tarjeta con los mismos textos de una oferta real (`$16.206`, `8 min (1,9 km)`, `35 min (11,2 km)`) y debe aparecer la **notificación** con el análisis. El overlay solo aparece si lo activas en Ajustes.
 
 ## Realme / OPPO (Realme UI)
 
@@ -82,7 +94,7 @@ Además de **Quitar restricción de batería**:
 
 Cada oferta leída se guarda en `filesDir/diagnostico.jsonl` (solo en el teléfono). El botón **Compartir diagnóstico** abre el menú de compartir para enviar el archivo. Sirve para calibrar el parser cuando DiDi cambie el formato.
 
-El log incluye los textos crudos, los campos parseados y el resultado del motor. También registra `servicio_conectado`, `servicio_desconectado`, `didi_ventana`, `ocr_propio` (notificación propia ignorada), `lista_sin_notificar`, `captura_pon_tu_precio` y errores de captura. No se envía nada automáticamente.
+El log incluye los textos crudos, los campos parseados y el resultado del motor. También registra `servicio_conectado`, `servicio_desconectado`, `didi_ventana`, `ocr_propio` (notificación propia ignorada), `lista_sin_notificar`, `captura_pon_tu_precio` con `ms` de procesamiento, `ocr_ms` y errores de captura. No se envía nada automáticamente.
 
 ## Compilar
 

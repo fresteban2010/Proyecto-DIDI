@@ -8,7 +8,7 @@ Su objetivo es auditar la rentabilidad real de cada carrera y de cada jornada me
 
 ## Estado del proyecto
 
-Las siete fases del plan de mejoras están implementadas y desplegadas:
+Las ocho fases del plan de mejoras están implementadas y desplegadas:
 
 | Fase | Contenido | Estado |
 | :--- | :--- | :---: |
@@ -19,8 +19,11 @@ Las siete fases del plan de mejoras están implementadas y desplegadas:
 | 5 | **Cierre de turno**, **costos ocultos** y **analítica multi-jornada** | ✅ |
 | 6 | **Identidad de marca** (logo tacómetro vintage 80s) y **sistema de animaciones** | ✅ |
 | 7 | **PWA instalable** (manifest raíz, iconos maskable, pantallas, atajos) y **GitHub Pages** | ✅ |
+| 8 | **Copiloto Android**: notificación por oferta, capturas “Pon tu precio”, análisis individual y rendimiento | ✅ |
 
 **URL canónica:** <https://fresteban2010.github.io/Proyecto-DIDI/> (repositorio público `Fresteban2010/Proyecto-DIDI`, GitHub Pages desde `main`).
+
+**Documentación:** [CHANGELOG.md](CHANGELOG.md) · [Resumen técnico](docs/RESUMEN_TECNICO.md)
 
 ---
 
@@ -104,8 +107,10 @@ App nativa complementaria en `android/` (v0.6.0) que lee la oferta de DiDi Condu
 - Requiere activar **Accesibilidad** una vez (Android 13+: “Permitir ajustes restringidos”).
 - La notificación es la vía principal: DiDi puede bloquear los overlays, pero no las notificaciones.
 - El parser tolera distancias en metros (`351 m`) y precios con botones de “Pon tu precio” al final.
-- **Ofertas “Pon tu precio” en lista:** las que aparecen en `Centro de solicitudes` y no saltan **no notifican**; se guardan como **ofertas individuales** (una tarjeta por oferta) con precio, tramos, miniatura y su **análisis** (semáforo, COP/km y COP/h). Máximo 50. Las que sí saltan como popup notifican normal.
+- **Ofertas “Pon tu precio” en lista:** las que aparecen en `Centro de solicitudes` y no saltan **no notifican**; se guardan como **ofertas individuales** (una tarjeta por oferta) con precio, tramos, miniatura recortada y su **análisis** (semáforo, COP/km y COP/h). Solo se muestran cuando están completas. Máximo 50. Las que sí saltan como popup notifican normal.
 - El OCR **ignora sus propias notificaciones** para evitar ofertas falsas y bucles.
+- **Rendimiento:** muestreo cada 1,5 s, OCR y guardado en segundo plano, respaldo cuando falta `Aceptar` y deduplicación por precio + ruta.
+- **Registrar** en cada tarjeta abre DIDI Pro con los datos de esa oferta precargados.
 - El botón **Registrar** abre esta PWA con `?registrar=1&precio=...` y el modal de carrera precargado.
 - Todo ocurre en el teléfono; no hay backend ni telemetría.
 - **Descarga:** <https://github.com/Fresteban2010/Proyecto-DIDI/releases> (`didi-copiloto.apk`).
@@ -306,5 +311,6 @@ La aplicación fue validada con pruebas automatizadas de navegador (Playwright h
 - Layout verificado en móvil (390×664 y 390×844) y escritorio (1280×800 y 1440×900) sin desbordes horizontales.
 - PWA: `manifest.json`, iconos y `sw.js` responden **200** bajo `/Proyecto-DIDI/`, el Service Worker llega a `activated` y la caché `didi-tracker-v10` queda poblada.
 - Rediseño móvil validado: cabecera no fija, botón `Registrar` central en la barra inferior y controles de audio/jornada accesibles desde Ajustes.
-- **Copiloto Android:** 24 tests unitarios (parser, motor, ajustes, detector y puente), CI con compilación del APK y release firmado con clave estable de sideload.
+- **Copiloto Android:** 48 tests unitarios (parser de ofertas, tarjetas “Pon tu precio”, clasificación popup/lista, motor, ajustes, detector y puente), CI con compilación del APK y release firmado con clave estable de sideload.
+- **Capturas “Pon tu precio”:** agrupación por tarjeta, respaldo sin `Aceptar`, recorte individual, solo ofertas completas, análisis por oferta y deduplicación por precio + ruta.
 - **Deep link del copiloto:** `?registrar=1` abre el modal detallado con los datos de la oferta, rechaza valores inválidos y no permite registrar en una jornada cerrada.
